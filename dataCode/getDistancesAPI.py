@@ -11,6 +11,7 @@ with open('data/getirStores.json') as fp:
 
 coordGetir = [[val.get('longitude'),val.get('latitude')] for val in getirStores.values()],
 counter = 0
+allCoords = []
 chunk, allDurations = [], []
 for index, row in df.iterrows():
     chunk.append([row['Longitude'], row['Latitude']])
@@ -29,7 +30,10 @@ for index, row in df.iterrows():
 
         print(call.status_code, call.reason)
         allDurations += call.json()['durations']
-        pd.DataFrame(np.array(allDurations)).to_csv("allDurations.csv")
+        allCoords += coords[10:]
+        dfToSave = pd.DataFrame(np.array(np.concatenate((np.array(allCoords), np.array(allDurations)),axis=1)))
+        dfToSave.columns =["Longitude", "Latitude", "Store1", "Store2", "Store3", "Store4", "Store5", "Store6", "Store7", "Store8", "Store9", "Store10"]
+        dfToSave.to_csv("allDurations15.csv",index_label='Index_name')
         chunk = []
         counter += 1
         print(counter, counter*250)
