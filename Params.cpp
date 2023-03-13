@@ -17,26 +17,66 @@ Params::Params()
 	nbClients = 0;
 	nbQuadrants = 0;
 	nbWarehouses = 0;
-	int client;
-	clients = std::vector<Client>(40000);
-	
-	std::ifstream inputFile("data/allDurations15.txt");
+	nbCouriers = 0;
+	paramClients = std::vector<Client>(40000);
+	paramWarehouses = std::vector<Warehouse>(30);
+	std::string content, content2, content3;
+	std::ifstream inputFile("instances/instance900.txt");
 	if (inputFile.is_open())
 	{
-		std::string line;
-		while ( getline (inputFile,line) )
+		for (inputFile >> content; content != "EOF"; inputFile >> content)
 		{
-			inputFile >> clients[nbClients].clientInd >> clients[nbClients].coordLat >> clients[nbClients].coordLon;
-			nbClients++;
+			if (content == "NUMBER_CLIENTS")
+				{
+					inputFile >> content2 >> nbClients;
+				}
+			else if (content == "NUMBER_WAREHOUSES")
+				{
+					inputFile >> content2 >> nbWarehouses;
+				}
+			else if (content == "NUMBER_QUADRANTS")
+				{
+					inputFile >> content2 >> nbQuadrants;
+				}
+			else if (content == "WAREHOUSE_SECTION")
+				{
+					// Reading warehouse data
+					for (int i = 0; i < nbWarehouses; i++)
+					{
+						inputFile >> paramWarehouses[i].wareInd >> paramWarehouses[i].lon >> paramWarehouses[i].lat >> paramWarehouses[i].initialNbCouriers;
+						nbCouriers += paramWarehouses[i].initialNbCouriers;
+					}
+					
+					// Reduce the size of the vector of warehouses if possible
+					paramWarehouses.resize(nbWarehouses);
+				}
+			else if (content == "CLIENT_SECTION")
+				{
+					// Reading client data
+					for (int i = 0; i < nbClients; i++)
+					{
+						inputFile >> paramClients[i].clientInd >> paramClients[i].lon >> paramClients[i].lat >> paramClients[i].inQuadrantInd;
+					}
+								// Reduce the size of the vector of clients if possible
+					paramClients.resize(nbClients);
+				}
+			else if (content == "EDGE_WEIGHT_SECTION")
+				{
+					travelTime = Matrix(nbClients, nbWarehouses);
+					for (int i = 0; i < nbClients; i++)
+					{
+						for (int j = 0; j < nbWarehouses; j++)
+						{	
+							// Keep track of the largest distance between two clients (or the depot)
+							int cost;
+							inputFile >> cost;
+							travelTime.set(i, j, cost);
+						}
+					}
+				}
 		}
-
-		nbClients--;
-		// Reduce the size of the vector of clients if possible
-		clients.resize(nbClients);
 	}
 
 }
-
-
 
 

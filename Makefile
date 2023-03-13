@@ -14,7 +14,7 @@ OBJS2 = \
 $(TARGETDIR)/optimalAssignment: $(OBJS2)
 	$(CCC) $(CCFLAGS) -o $(TARGETDIR)/optimalAssignment $(OBJS2)
 	
-$(TARGETDIR)/Data.o: Params.h Params.cpp
+$(TARGETDIR)/Params.o: Params.h Params.cpp
 	$(CCC) $(CCFLAGS) -c Params.cpp -o $(TARGETDIR)/Params.o
 
 $(TARGETDIR)/Environment.o: Environment.h Environment.cpp

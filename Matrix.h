@@ -9,17 +9,18 @@
 class Matrix
 {
     int cols_;                  // The number of columns of the matrix
+    int rows_;                  // The number of rows of the matrix
     std::vector<int> data_;     // The vector where all the data is stored (this represents the matrix)
 
 public:
-    // Empty constructor: with zero columns and a vector of size zero
-    Matrix() : cols_(0), data_(std::vector<int>(0))
+    // Empty constructor: with zero columns and rows and a vector of size zero
+    Matrix() : cols_(0), rows_(0), data_(std::vector<int>(0))
     {}
 
     // Constructor: create a matrix of size dimension by dimension, using a C++ vector of size dimension * dimension 
-    Matrix(const int dimension) : cols_(dimension)
+    Matrix(const int dimensionX, const int dimensionY) : cols_(dimensionY), rows_(dimensionX)
     {
-        data_ = std::vector<int>(dimension * dimension);
+        data_ = std::vector<int>(dimensionX * dimensionY);
     }
 
     // Set a value val at position (row, col) in the matrix
