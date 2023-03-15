@@ -34,6 +34,20 @@ public:
     {
         return data_[cols_ * row + col];
     }
+
+    // Get row of the matrix
+    std::vector<int> getRow(const int row) const
+    {
+        std::vector<int> vectorSlice; 
+        
+        for (int col=0; col<cols_; col++)
+        {
+            vectorSlice.push_back(data_[cols_ * row + col]);
+        }
+        
+        return vectorSlice;
+    }
+
 };
 
 #endif
