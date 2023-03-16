@@ -36,8 +36,6 @@ struct Warehouse
 	int initialNbPickers;								// Initial number of pickers
 	std::vector< Courier*> couriersAssigned; 			// vector of pointers to couriers which are assigned to the warehouse
 	std::vector< Picker*> pickersAssigned; 				// vector of pointers to pickers which are assigned to the warehouse
-	std::vector< Courier*> couriersAvailable; 			// vector of pointers to couriers which are currently available at the warehouse
-	std::vector< Picker*> pickersAvailable; 			// vector of pointers to pickers which are currently available at the warehouse
 	std::vector< Quadrant*> assignedQuadrants; 			// vector of pointers to quadrants which are assigned to the warehouse
 	double lat;											// Latitude
 	double lon;											// Longitude 
@@ -54,14 +52,14 @@ struct Order
 	Picker* assignedPicker;			// Picker assigned to order
 	int orderTime;					// Time the order arrives in the system
 	int comissionTime;				// Time it takes to comission the order
-	int arrivalTime;				// time the courier arrives at the customer, i.e., the customer is served
+	int arrivalTime;				// time the courier arrives at the client, i.e., the client is served
 };
 
 // Structure of a Courier, including its index, position, etc.
 struct Courier
 {
 	int courierInd;							// Index of the courier
-	int secondsUntilAvailable; 				// Gives the seconds until the courier is available again, i.e., he return to a warehouse
+	int timeWhenAvailable; 					// Gives the time when the courier is available again, i.e., he return to a warehouse
 	std::vector< Order*> assignedToOrders;	// Vector of pointer to orders to which the courier is assigned to
 	Warehouse* assignedToWarehouse;			// Warehouse where the courier is located or where he is heading to
 };
@@ -70,7 +68,7 @@ struct Courier
 struct Picker
 {
 	int pickerInd;							// Index of the picker
-	int secondsUntilAvailable;				// Gives the seconds until the picker is available again, i.e., completed all his tasks
+	int timeWhenAvailable;					// Gives the time when the picker is available again, i.e., completed all his tasks
 	std::vector< Order*> assignedToOrders;	// Vector of pointer to orders to which the picker is assigned to
 	Warehouse* assignedToWarehouse;			// Warehouse where the picker is located to
 };
