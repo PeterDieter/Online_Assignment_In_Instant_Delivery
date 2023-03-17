@@ -68,7 +68,7 @@ private:
 	void updateOrderBeingServedNext();
 
 	// Function to draw an inter arrival time based on rate specified in params
-	int drawInterArrivalTime();
+	int drawFromExponentialDistribution(double lambda);
 
 };
 

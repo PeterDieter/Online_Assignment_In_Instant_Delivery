@@ -95,6 +95,7 @@ public:
 	int nbCouriers;							// Total Number of couriers
 	int nbPickers;							// Total number of pickers
 	double interArrivalTime;				// Inter arrival time of incoming orders
+	double meanCommissionTime;				// Mean time it takes to commission an order (exponential distributed)
 	std::vector<Client> paramClients;		// Vector containing information on each client
 	std::vector<Quadrant> paramQuadrants;	// Vector containing information on each quadrant
 	std::vector<Warehouse> paramWarehouses;	// Vector containing information on each warehouse

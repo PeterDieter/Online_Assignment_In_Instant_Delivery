@@ -69,7 +69,7 @@ void Environment::initialize()
 void Environment::initOrder(int currentTime, Order* o)
 {
     o->orderID = orders.size();
-    o->timeToComission = 120; // For now we just set the time it takes to comission an order to 120 seconds
+    o->timeToComission = drawFromExponentialDistribution(params->meanCommissionTime); // Follows expoential distribution
     o->assignedCourier = nullptr;
     o->assignedPicker = nullptr;
     o->assignedWarehouse = nullptr;
@@ -78,11 +78,11 @@ void Environment::initOrder(int currentTime, Order* o)
     o->orderTime = currentTime;
 }
 
-int Environment::drawInterArrivalTime()
+int Environment::drawFromExponentialDistribution(double lambda)
 {
     // Random number generator based on poisson process
-    double lambda = 1/params->interArrivalTime;
-    std::exponential_distribution<double> exp (lambda);
+    double lambdaInv = 1/lambda;
+    std::exponential_distribution<double> exp (lambdaInv);
     return round(exp.operator() (params->rng));
 }
 
@@ -221,8 +221,8 @@ void Environment::simulate(int timeLimit)
         // Keep track of current time
         currentTime = std::min(timeCustomerArrives, timeNextCourierArrivesAtOrder);
     
-        if (timeCustomerArrives < timeNextCourierArrivesAtOrder){
-            timeCustomerArrives += drawInterArrivalTime();
+        if (timeCustomerArrives < timeNextCourierArrivesAtOrder && currentTime <= timeLimit){
+            timeCustomerArrives += drawFromExponentialDistribution(params->interArrivalTime);
             // Draw new order and assign it to warehouse, picker and courier. MUST BE IN THAT ORDER!!!
             Order* newOrder = new Order;
             initOrder(currentTime, newOrder);
@@ -237,7 +237,7 @@ void Environment::simulate(int timeLimit)
             }else{ // else we add the order to list of orders that have not been assigned to a courier yet
                 newOrder->assignedWarehouse->ordersNotAssignedToCourier.push_back(newOrder);    
             }
-        }else{ // when a courier arrives at an order
+        }else if (currentTime <= timeLimit){ // when a courier arrives at an order
             Courier* c = nextOrderBeingServed->assignedCourier;
             // We choose a warehouse for the courier
             chooseWarehouseForCourier(c);

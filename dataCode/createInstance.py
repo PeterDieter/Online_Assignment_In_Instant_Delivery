@@ -3,7 +3,7 @@ import numpy as np
 import json
 from matplotlib import pyplot as plt 
 
-def create_instance(fileName: str, limit: int=900, couriersPerWarehouse: int=5, pickersPerWarehouse: int=3, interArrivalTime: int=15):
+def create_instance(fileName: str, limit: int=900, couriersPerWarehouse: int=5, pickersPerWarehouse: int=3, interArrivalTime: int=15, meanComissionTime: int=120):
     df = pd.read_csv("data/allDurations15.csv", header=0) 
     df = df.to_numpy()
     clients = df[:,:3]
@@ -32,7 +32,8 @@ def create_instance(fileName: str, limit: int=900, couriersPerWarehouse: int=5, 
                 ("NUMBER_CLIENTS", len(clients)),
                 ("NUMBER_WAREHOUSES", len(warehouses)),
                 ("NUMBER_QUADRANTS", 1),
-                ("INTER_ARRIVAL_TIME", interArrivalTime)]
+                ("INTER_ARRIVAL_TIME", interArrivalTime),
+                ("MEAN_COMMISSION_TIME", meanComissionTime)]
         ]))
         f.write("\n")
         
@@ -62,4 +63,4 @@ def create_instance(fileName: str, limit: int=900, couriersPerWarehouse: int=5, 
 
 
 if __name__ == "__main__":
-    create_instance(fileName = "instance900_8_3_30", limit=900, couriersPerWarehouse=8, pickersPerWarehouse=3, interArrivalTime=30)
+    create_instance(fileName = "instance900_8_3_30_120", limit=900, couriersPerWarehouse=8, pickersPerWarehouse=3, interArrivalTime=30, meanComissionTime=120)

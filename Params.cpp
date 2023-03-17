@@ -22,6 +22,7 @@ Params::Params(std::string instanceName)
 	nbCouriers = 0;
 	nbPickers = 0;
 	interArrivalTime = 15;
+	meanCommissionTime = 80;
 	paramClients = std::vector<Client>(40000);
 	paramWarehouses = std::vector<Warehouse>(30);
 	std::string content, content2, content3;
@@ -45,6 +46,10 @@ Params::Params(std::string instanceName)
 			else if (content == "INTER_ARRIVAL_TIME")
 				{
 					inputFile >> content2 >> interArrivalTime;
+				}
+			else if (content == "MEAN_COMMISSION_TIME")
+				{
+					inputFile >> content2 >> meanCommissionTime;
 				}
 			else if (content == "WAREHOUSE_SECTION")
 				{
