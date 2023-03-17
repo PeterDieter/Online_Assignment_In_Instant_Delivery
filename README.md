@@ -19,5 +19,5 @@ you can then execute the code with:
 where instanceName gives the path to the .txt file containing the instance information. For example:
 
 ```
-./optimalAssignment instances/instances900_5_3_15.txt
+./optimalAssignment instances/instances900_8_3_30.txt
 ```
