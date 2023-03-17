@@ -27,16 +27,16 @@ private:
 	Params* params;												// Problem parameters
 	std::vector<Order*> orders;									// Vector of pointers to orders. containing information on each order
 	std::vector<Order*> ordersAssignedToCourierButNotServed;	// Vector of orders that have not been served yet
-	std::vector<Warehouse> warehouses;							// Vector containing information on each warehouse
-	std::vector<Courier> couriers;								// Vector containing information on each courier
-	std::vector<Picker> pickers;								// Vector containing information on each courier
-	Order* nextOrderBeingServed;
-	std::vector<int> distancesToWarehouses; 
+	std::vector<Warehouse*> warehouses;							// Vector of pointers containing information on each warehouse
+	std::vector<Courier*> couriers;								// Vector of pointers containing  information on each courier
+	std::vector<Picker*> pickers;								// Vector of pointers  containing information on each picker
+	Order* nextOrderBeingServed;								// Order that will be served next. Needed as we have two types of decision epoch: Order arriving and order being served (courier needs to be reassigned)
 	int currentTime;
 	int nbOrdersServed;
 	int timeCustomerArrives;
 	int timeNextCourierArrivesAtOrder;
 	int totalWaitingTime;
+	int highestWaitingTimeOfAnOrder;
 
 	// In this method we initialize the rest of the Data, such as warehouses, couriers, etc.
 	void initialize();
@@ -58,10 +58,10 @@ private:
 	// Function that deletes order from ordersNotServed vector
 	void RemoveCourierFromVector(std::vector<Courier*> & V, Courier* courierToDelete);
 
-	// Function that returns the fastest available picker
+	// Function that returns the fastest available picker at a warehouse
 	Picker* getFastestAvailablePicker(Warehouse* warehouse);
 
-	// Function that returns the fastest available courier
+	// Function that returns the fastest available courier assigned to a warehouse
 	Courier* getFastestAvailableCourier(Warehouse* warehouse);
 
 	// Function that updates the order that will be served next

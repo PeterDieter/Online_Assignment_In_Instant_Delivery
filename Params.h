@@ -31,13 +31,12 @@ struct Client
 // Structure of a Warehouse, including its index, position
 struct Warehouse
 {
-	int wareID;										// IDex of the warehouse
-	int workLoad;										// The work load in needed to comission all assigned orders in seconds
+	int wareID;											// ID of the warehouse
 	int initialNbCouriers;								// Initial number of couriers
 	int initialNbPickers;								// Initial number of pickers
 	std::vector< Courier*> couriersAssigned; 			// vector of pointers to couriers which are assigned to the warehouse
 	std::vector< Picker*> pickersAssigned; 				// vector of pointers to pickers which are assigned to the warehouse
-	std::vector< Order*> ordersNotAssignedToCourier;		// vector to orders that are assigned to the warehouse, but not to a courier yet
+	std::vector< Order*> ordersNotAssignedToCourier;	// vector to orders that are assigned to the warehouse, but not to a courier yet
 	std::vector< Quadrant*> assignedQuadrants; 			// vector of pointers to quadrants which are assigned to the warehouse
 	double lat;											// Latitude
 	double lon;											// Longitude 
@@ -47,21 +46,21 @@ struct Warehouse
 // Structure of a Warehouse, including its index, position
 struct Order
 {
-	int orderID;					// IDex of the warehouse
+	int orderID;					// ID of the warehouse
 	Client* client; 				// pointer to couriers which are currently available at the warehouse
 	Warehouse* assignedWarehouse; 	// pointer to quadrants which are assigned to the warehouse
 	Courier* assignedCourier;		// Courier assigned to order
 	Picker* assignedPicker;			// Picker assigned to order
 	int orderTime;					// Time the order arrives in the system
-	int comissionTime;				// Time it takes to comission the order
+	int timeToComission;			// Time it takes to comission the order
 	int arrivalTime;				// time the courier arrives at the client, i.e., the client is served
 };
 
 // Structure of a Courier, including its index, position, etc.
 struct Courier
 {
-	int courierID;							// IDex of the courier
-	int timeWhenAvailable; 					// Gives the time when the courier is available again, i.e., he return to a warehouse
+	int courierID;							// ID of the courier
+	int timeWhenAvailable; 					// Gives the time when the courier is available again, i.e., he is (back) at a warehouse
 	Order* assignedToOrder;					// pointer to order to which the courier is assigned to
 	Warehouse* assignedToWarehouse;			// Warehouse where the courier is located or where he is heading to
 };
@@ -69,7 +68,7 @@ struct Courier
 // Structure of a Courier, including its index, position, etc.
 struct Picker
 {
-	int pickerID;							// IDex of the picker
+	int pickerID;							// ID of the picker
 	int timeWhenAvailable;					// Gives the time when the picker is available again, i.e., completed all his tasks
 	std::vector< Order*> assignedToOrders;	// Vector of pointer to orders to which the picker is assigned to. Pickers can be assigned to multiple orders at the same time
 	Warehouse* assignedToWarehouse;			// Warehouse where the picker is located to
@@ -78,7 +77,7 @@ struct Picker
 // Structure of a quadrant, including its index, clients and possibly position?
 struct Quadrant
 {
-	int quadrantID;							// IDex of the quadrant
+	int quadrantID;								// ID of the quadrant
 	Warehouse* assignedToWarehouse;				// Pointer to warehouse the quadrant is assigned to
 	std::vector< Client*> clientsInQuadrant; 	// vector of pointers to clients which are in the quadrant;
 };
@@ -90,19 +89,17 @@ class Params
 public:
 	Params(std::string instanceName);
 	// Data of the problem instance
-	int nbClients;						// Number of clients
-	int nbQuadrants;					// Number of quadrants
-	int nbWarehouses;					// Number of warehouses
-	int nbCouriers;						// Total Number of couriers
-	int nbPickers;						// Total number of pickers
-	double interArrivalTime;			// Inter arrival time of incoming orders
+	int nbClients;							// Number of clients
+	int nbQuadrants;						// Number of quadrants
+	int nbWarehouses;						// Number of warehouses
+	int nbCouriers;							// Total Number of couriers
+	int nbPickers;							// Total number of pickers
+	double interArrivalTime;				// Inter arrival time of incoming orders
 	std::vector<Client> paramClients;		// Vector containing information on each client
 	std::vector<Quadrant> paramQuadrants;	// Vector containing information on each quadrant
 	std::vector<Warehouse> paramWarehouses;	// Vector containing information on each warehouse
-	std::vector<Courier> paramCouriers;		// Vector containing information on each courier
-	std::vector<Courier> paramPickers;		// Vector containing information on each picker
-	Matrix travelTime;					// Distance matrix from clients to warehouses (symetric)
-	XorShift128 rng;					// Fast random number generator
+	Matrix travelTime;						// Distance matrix from clients to warehouses (symetric)
+	XorShift128 rng;						// Fast random number generator
 };
 
 

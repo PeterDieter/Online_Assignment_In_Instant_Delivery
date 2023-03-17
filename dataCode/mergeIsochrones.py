@@ -35,13 +35,16 @@ Stopls = pd.read_csv("data/stopData_Chicago.csv", header=None, names=['Latitude'
 
 df = pd.DataFrame(Stopls, columns =['Latitude', 'Longitude', 'PackageVolume', 'Date'])
 
-df['inRange'] = 0
+df['inRange15'], df['inRange10'] = 0, 0
 for index, row in df.iterrows():
-    if (boundary10.contains(Point(row['Longitude'], row['Latitude']))):
-        df.loc[index,'inRange'] = 1
-df = df.drop(df[df.inRange < 1].index)
+    if (boundary15.contains(Point(row['Longitude'], row['Latitude']))):
+        df.loc[index,'inRange15'] = 1
+        if (boundary10.contains(Point(row['Longitude'], row['Latitude']))):
+            df.loc[index,'inRange10'] = 1
+
+df = df.drop(df[df.inRange10 < 1].index)
 df = df[['Latitude', 'Longitude']]
-df.to_csv('data/stopData10Minutes.csv', header=True)
+#df.to_csv('data/stopData15Minutes.csv', header=True)
 
 fig = go.Figure(go.Densitymapbox(lat=df.Latitude, lon=df.Longitude,
                                  radius=4))

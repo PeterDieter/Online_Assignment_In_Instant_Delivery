@@ -25,37 +25,43 @@ void Environment::initialize()
     int courierCounter = 0;
     int pickerCounter = 0;
     totalWaitingTime = 0;
+    highestWaitingTimeOfAnOrder = 0;
     nbOrdersServed = 0;
-    couriers = std::vector<Courier>(params->nbCouriers);
-    pickers = std::vector<Picker>(params->nbCouriers);
+    couriers = std::vector<Courier*>(0);
+    pickers = std::vector<Picker*>(0);
     orders = std::vector<Order*>(0);
-    warehouses = std::vector<Warehouse>(params->nbWarehouses);
+    warehouses = std::vector<Warehouse*>(0);
 
     for (int wID = 0; wID < params->nbWarehouses; wID++)
     {
-        warehouses[wID].wareID = params->paramWarehouses[wID].wareID;
-        warehouses[wID].lat = params->paramWarehouses[wID].lat;
-        warehouses[wID].lon = params->paramWarehouses[wID].lon;
-        warehouses[wID].initialNbCouriers = params->paramWarehouses[wID].initialNbCouriers;
-        warehouses[wID].initialNbPickers = params->paramWarehouses[wID].initialNbPickers;
-        for (int cID = 0; cID < warehouses[wID].initialNbCouriers; cID++)
+        Warehouse* newWarehouse = new Warehouse;
+        warehouses.push_back(newWarehouse);
+        newWarehouse->wareID = params->paramWarehouses[wID].wareID;
+        newWarehouse->lat = params->paramWarehouses[wID].lat;
+        newWarehouse->lon = params->paramWarehouses[wID].lon;
+        newWarehouse->initialNbCouriers = params->paramWarehouses[wID].initialNbCouriers;
+        newWarehouse->initialNbPickers = params->paramWarehouses[wID].initialNbPickers;
+        for (int cID = 0; cID < newWarehouse->initialNbCouriers; cID++)
         {
-            couriers[courierCounter].courierID = courierCounter;
-            couriers[courierCounter].assignedToWarehouse = &warehouses[wID];
-            couriers[courierCounter].assignedToOrder = nullptr;
-            couriers[courierCounter].timeWhenAvailable = 0;
-            warehouses[wID].couriersAssigned.push_back(&couriers[courierCounter]);
+            Courier* newCourier = new Courier;
+            newCourier->courierID = courierCounter;
+            newCourier->assignedToWarehouse = warehouses[wID];
+            newCourier->assignedToOrder = nullptr;
+            newCourier->timeWhenAvailable = 0;
+            couriers.push_back(newCourier);
+            newWarehouse->couriersAssigned.push_back(newCourier);
             courierCounter ++;    
         }
-        for (int pID = 0; pID < warehouses[wID].initialNbPickers; pID++)
+        for (int pID = 0; pID < newWarehouse->initialNbPickers; pID++)
         {
-            pickers[pickerCounter].pickerID = pickerCounter;
-            pickers[pickerCounter].assignedToWarehouse = &warehouses[wID];
-            pickers[pickerCounter].timeWhenAvailable = 0;
-            warehouses[wID].pickersAssigned.push_back(&pickers[pickerCounter]);
+            Picker* newPicker = new Picker;
+            newPicker->pickerID = pickerCounter;
+            newPicker->assignedToWarehouse = warehouses[wID];
+            newPicker->timeWhenAvailable = 0;
+            pickers.push_back(newPicker);
+            newWarehouse->pickersAssigned.push_back(newPicker);
             pickerCounter ++;    
         }
-        warehouses[wID].workLoad = 0;
     }
 
 }
@@ -63,7 +69,7 @@ void Environment::initialize()
 void Environment::initOrder(int currentTime, Order* o)
 {
     o->orderID = orders.size();
-    o->comissionTime = 120;
+    o->timeToComission = 120; // For now we just set the time it takes to comission an order to 120 seconds
     o->assignedCourier = nullptr;
     o->assignedPicker = nullptr;
     o->assignedWarehouse = nullptr;
@@ -84,9 +90,9 @@ void Environment::chooseWarehouseForOrder(Order* newOrder)
 {
     // For now we just assign the order to the closest warehouse
     int indexClosestWarehouse;
-    distancesToWarehouses = params->travelTime.getRow(newOrder->client->clientID);
+    std::vector<int> distancesToWarehouses = params->travelTime.getRow(newOrder->client->clientID);
     indexClosestWarehouse = std::min_element(distancesToWarehouses.begin(), distancesToWarehouses.end())-distancesToWarehouses.begin();
-    newOrder->assignedWarehouse = &warehouses[indexClosestWarehouse];
+    newOrder->assignedWarehouse = warehouses[indexClosestWarehouse];
 }
 
 void Environment::choosePickerForOrder(Order* newOrder) 
@@ -94,7 +100,7 @@ void Environment::choosePickerForOrder(Order* newOrder)
     // We choose the picker who is available fastest
     newOrder->assignedPicker = getFastestAvailablePicker(newOrder->assignedWarehouse);
     // We set the time the picker is available again to the maximum of either the previous availability time or the current time, plus the time needed to comission the order
-    newOrder->assignedPicker->timeWhenAvailable = std::max(newOrder->assignedPicker->timeWhenAvailable, currentTime) + newOrder->comissionTime;
+    newOrder->assignedPicker->timeWhenAvailable = std::max(newOrder->assignedPicker->timeWhenAvailable, currentTime) + newOrder->timeToComission;
     newOrder->assignedPicker->assignedToOrders.push_back(newOrder);
 }
 
@@ -122,9 +128,9 @@ void Environment::chooseCourierForOrder(Order* newOrder)
 void Environment::chooseWarehouseForCourier(Courier* courier)
 {
     int indexClosestWarehouse;
-    distancesToWarehouses = params->travelTime.getRow(courier->assignedToOrder->client->clientID);
+    std::vector<int> distancesToWarehouses = params->travelTime.getRow(courier->assignedToOrder->client->clientID);
     indexClosestWarehouse = std::min_element(distancesToWarehouses.begin(), distancesToWarehouses.end())-distancesToWarehouses.begin();
-    courier->assignedToWarehouse = &warehouses[indexClosestWarehouse];
+    courier->assignedToWarehouse = warehouses[indexClosestWarehouse];
            
     // Compute the time the courier is available again, i.e., can leave the warehouse that we just assigned him to
     courier->timeWhenAvailable = nextOrderBeingServed->arrivalTime + params->travelTime.get(nextOrderBeingServed->client->clientID, courier->assignedToWarehouse->wareID);
@@ -133,6 +139,10 @@ void Environment::chooseWarehouseForCourier(Courier* courier)
     // Increment the number of order that have been served
     nbOrdersServed ++;
     totalWaitingTime += courier->assignedToOrder->arrivalTime - courier->assignedToOrder->orderTime;
+    if (highestWaitingTimeOfAnOrder < courier->assignedToOrder->arrivalTime - courier->assignedToOrder->orderTime)
+    {
+        highestWaitingTimeOfAnOrder = courier->assignedToOrder->arrivalTime - courier->assignedToOrder->orderTime;
+    }
     // Remove the order from the order that have not been served
     RemoveOrderFromVector(ordersAssignedToCourierButNotServed, nextOrderBeingServed);
     // Update the order that will be served next
@@ -240,7 +250,7 @@ void Environment::simulate(int timeLimit)
         }
     }
     std::cout<<"----- Simulation finished -----"<<std::endl;
-    std::cout<<"----- Number of orders who arrived: " << orders.size() << " and served: " << nbOrdersServed << ". Mean waiting time: " << totalWaitingTime/nbOrdersServed <<" seconds. -----" <<std::endl;
+    std::cout<<"----- Number of orders who arrived: " << orders.size() << " and served: " << nbOrdersServed << ". Mean waiting time: " << totalWaitingTime/nbOrdersServed <<" seconds. Highest waiting time: " << highestWaitingTimeOfAnOrder <<" seconds. -----" <<std::endl;
 }
 
 

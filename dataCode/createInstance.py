@@ -62,4 +62,4 @@ def create_instance(fileName: str, limit: int=900, couriersPerWarehouse: int=5, 
 
 
 if __name__ == "__main__":
-    create_instance(fileName = "instance900_5_3_15", limit=900, couriersPerWarehouse=10, pickersPerWarehouse=5, interArrivalTime=30)
+    create_instance(fileName = "instance900_8_3_30", limit=900, couriersPerWarehouse=8, pickersPerWarehouse=3, interArrivalTime=30)
