@@ -23,10 +23,11 @@ Params::Params(std::string instanceName)
 	nbPickers = 0;
 	interArrivalTime = 15;
 	meanCommissionTime = 80;
-	paramClients = std::vector<Client>(40000);
-	paramWarehouses = std::vector<Warehouse>(30);
+	paramClients = std::vector<Client>(40000); // 40000 is an upper limit, can be increase ofc
+	paramWarehouses = std::vector<Warehouse>(30); // 30 is an upper limit, can be increased ofc
 	std::string content, content2, content3;
 	std::ifstream inputFile(instanceName);
+	if (!inputFile) throw std::runtime_error("Could not find file instance");
 	if (inputFile.is_open())
 	{
 		for (inputFile >> content; content != "EOF"; inputFile >> content)
