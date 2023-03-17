@@ -18,7 +18,7 @@ int main()
 
   // Creating the Environment
   Environment environment(&params);
-  environment.simulate(18200);
+  environment.simulate(86400);
 
 
   // return 0 upon succesful completion

@@ -51,7 +51,7 @@ Params::Params()
 					// Reading warehouse data
 					for (int i = 0; i < nbWarehouses; i++)
 					{
-						inputFile >> paramWarehouses[i].wareInd >> paramWarehouses[i].lon >> paramWarehouses[i].lat >> paramWarehouses[i].initialNbCouriers >> paramWarehouses[i].initialNbPickers;
+						inputFile >> paramWarehouses[i].wareID >> paramWarehouses[i].lon >> paramWarehouses[i].lat >> paramWarehouses[i].initialNbCouriers >> paramWarehouses[i].initialNbPickers;
 						nbCouriers += paramWarehouses[i].initialNbCouriers;
 						nbPickers += paramWarehouses[i].initialNbPickers;
 					}
@@ -64,7 +64,7 @@ Params::Params()
 					// Reading client data
 					for (int i = 0; i < nbClients; i++)
 					{
-						inputFile >> paramClients[i].clientInd >> paramClients[i].lon >> paramClients[i].lat >> paramClients[i].inQuadrantInd;
+						inputFile >> paramClients[i].clientID >> paramClients[i].lon >> paramClients[i].lat >> paramClients[i].inQuadrantID;
 					}
 								// Reduce the size of the vector of clients if possible
 					paramClients.resize(nbClients);

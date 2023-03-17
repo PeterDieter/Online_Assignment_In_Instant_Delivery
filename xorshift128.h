@@ -18,7 +18,7 @@ public:
     typedef unsigned result_type;
 
     // Constructor of the Xorshift random number generator, given a seed stored as state_[0]
-    XorShift128(const int seed = 42)
+    XorShift128(const int seed = 35)
     {
         state_[0] = seed;
         state_[1] = 123456789;
