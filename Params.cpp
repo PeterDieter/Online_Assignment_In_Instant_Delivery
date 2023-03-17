@@ -13,7 +13,7 @@
 
 
 
-Params::Params()
+Params::Params(std::string instanceName)
 {
 	rng = XorShift128(42);
 	nbClients = 0;
@@ -25,7 +25,7 @@ Params::Params()
 	paramClients = std::vector<Client>(40000);
 	paramWarehouses = std::vector<Warehouse>(30);
 	std::string content, content2, content3;
-	std::ifstream inputFile("instances/instance900_5_3_15.txt");
+	std::ifstream inputFile(instanceName);
 	if (inputFile.is_open())
 	{
 		for (inputFile >> content; content != "EOF"; inputFile >> content)

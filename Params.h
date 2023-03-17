@@ -88,7 +88,7 @@ struct Quadrant
 class Params
 {
 public:
-	Params();
+	Params(std::string instanceName);
 	// Data of the problem instance
 	int nbClients;						// Number of clients
 	int nbQuadrants;					// Number of quadrants

@@ -36,6 +36,7 @@ private:
 	int nbOrdersServed;
 	int timeCustomerArrives;
 	int timeNextCourierArrivesAtOrder;
+	int totalWaitingTime;
 
 	// In this method we initialize the rest of the Data, such as warehouses, couriers, etc.
 	void initialize();

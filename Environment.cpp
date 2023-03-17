@@ -24,6 +24,7 @@ void Environment::initialize()
     // CONSTRUCTOR: First we initialize the environment by assigning 
     int courierCounter = 0;
     int pickerCounter = 0;
+    totalWaitingTime = 0;
     nbOrdersServed = 0;
     couriers = std::vector<Courier>(params->nbCouriers);
     pickers = std::vector<Picker>(params->nbCouriers);
@@ -110,7 +111,7 @@ void Environment::chooseCourierForOrder(Order* newOrder)
     }
 
     // Remove order from vector of orders that have not been assigned to a courier yet (If applicable)   
-    RemoveOrderFromVector(newOrder->assignedWarehouse->ordersNotAssignedToCourier,newOrder);
+    RemoveOrderFromVector(newOrder->assignedWarehouse->ordersNotAssignedToCourier, newOrder);
     // Remove courier from vector of couriers assigned to warehouse
     RemoveCourierFromVector(newOrder->assignedWarehouse->couriersAssigned, newOrder->assignedCourier);
     newOrder->assignedCourier->assignedToWarehouse = nullptr;
@@ -131,6 +132,7 @@ void Environment::chooseWarehouseForCourier(Courier* courier)
     courier->assignedToWarehouse->couriersAssigned.push_back(courier);
     // Increment the number of order that have been served
     nbOrdersServed ++;
+    totalWaitingTime += courier->assignedToOrder->arrivalTime - courier->assignedToOrder->orderTime;
     // Remove the order from the order that have not been served
     RemoveOrderFromVector(ordersAssignedToCourierButNotServed, nextOrderBeingServed);
     // Update the order that will be served next
@@ -238,7 +240,7 @@ void Environment::simulate(int timeLimit)
         }
     }
     std::cout<<"----- Simulation finished -----"<<std::endl;
-    std::cout<<"----- Number of orders who arrived: " << orders.size() << " and served: " << nbOrdersServed << " -----" <<std::endl;
+    std::cout<<"----- Number of orders who arrived: " << orders.size() << " and served: " << nbOrdersServed << ". Mean waiting time: " << totalWaitingTime/nbOrdersServed <<" seconds. -----" <<std::endl;
 }
 
 

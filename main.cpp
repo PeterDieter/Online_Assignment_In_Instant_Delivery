@@ -6,11 +6,11 @@
 #include "Params.h"
 #include "Environment.h"
 
-int main()
+int main(int argc, char * argv[])
 {
   // Reading the data file and initializing some data structures
-  std::cout << "----- READING DATA SET -----" << std::endl;
-  Params params;
+  std::cout << "----- READING DATA SET " << argv[1] << " -----" << std::endl;
+  Params params(argv[1]);
   std::cout << "----- Instance with " << params.nbClients << " Clients, " << params.nbWarehouses << " Warehouses, and " << params.nbQuadrants << " Quadrants -----" << std::endl;
 
   // The optimization code should come here
