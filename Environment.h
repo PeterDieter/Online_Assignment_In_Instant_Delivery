@@ -69,7 +69,7 @@ private:
 	void updateOrderBeingServedNext();
 
 	// Function that saves a route to the list of routes
-	void saveRoute(int startTime, double fromLat, double fromLon, double toLat, double toLon);
+	void saveRoute(int startTime, int arrivalTime, double fromLat, double fromLon, double toLat, double toLon);
 
 	// Function that writes routes to file
 	void writeRoutesToFile(std::string fileName);

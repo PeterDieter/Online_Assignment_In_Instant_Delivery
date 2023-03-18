@@ -15,6 +15,7 @@ for i in range(10):
         polygons.append(shape(d['geometry']))
 
 boundary15 = Polygon(gpd.GeoSeries(unary_union(polygons))[0])
+gpd.GeoSeries(unary_union(polygons)).to_file("data/Polygon_900s",driver='ESRI Shapefile')
 boundaryGeoJson15 = gpd.GeoSeries([boundary15]).__geo_interface__
 
 polygons = []

@@ -115,7 +115,9 @@ void Environment::chooseCourierForOrder(Order* newOrder)
         timeNextCourierArrivesAtOrder = newOrder->arrivalTime;
         nextOrderBeingServed = newOrder;
     }
-    saveRoute(std::max(currentTime, std::max(newOrder->assignedCourier->timeWhenAvailable, newOrder->assignedPicker->timeWhenAvailable)), newOrder->assignedCourier->assignedToWarehouse->lat, newOrder->assignedCourier->assignedToWarehouse->lon, newOrder->client->lat, newOrder->client->lon);
+
+    saveRoute(std::max(currentTime, std::max(newOrder->assignedCourier->timeWhenAvailable, newOrder->assignedPicker->timeWhenAvailable)), newOrder->arrivalTime, newOrder->assignedCourier->assignedToWarehouse->lat, newOrder->assignedCourier->assignedToWarehouse->lon, newOrder->client->lat, newOrder->client->lon);
+
     // Remove order from vector of orders that have not been assigned to a courier yet (If applicable)   
     RemoveOrderFromVector(newOrder->assignedWarehouse->ordersNotAssignedToCourier, newOrder);
     // Remove courier from vector of couriers assigned to warehouse
@@ -143,7 +145,9 @@ void Environment::chooseWarehouseForCourier(Courier* courier)
     {
         highestWaitingTimeOfAnOrder = courier->assignedToOrder->arrivalTime - courier->assignedToOrder->orderTime;
     }
-    saveRoute(nextOrderBeingServed->arrivalTime, nextOrderBeingServed->client->lat, nextOrderBeingServed->client->lon, courier->assignedToWarehouse->lat, courier->assignedToWarehouse->lon);
+    
+    saveRoute(nextOrderBeingServed->arrivalTime, courier->timeWhenAvailable, nextOrderBeingServed->client->lat, nextOrderBeingServed->client->lon, courier->assignedToWarehouse->lat, courier->assignedToWarehouse->lon);
+    
     // Remove the order from the order that have not been served
     RemoveOrderFromVector(ordersAssignedToCourierButNotServed, nextOrderBeingServed);
     // Update the order that will be served next
@@ -151,10 +155,11 @@ void Environment::chooseWarehouseForCourier(Courier* courier)
     courier->assignedToOrder = nullptr;
 }
 
-void Environment::saveRoute(int startTime, double fromLat, double fromLon, double toLat, double toLon){
+void Environment::saveRoute(int startTime, int arrivalTime, double fromLat, double fromLon, double toLat, double toLon){
     Route* route = new Route;
     route->fromlLat = fromLat; route->fromlon = fromLon; route->tolLat = toLat; route->tolon = toLon;
     route->startTime = startTime;
+    route->arrivalTime = arrivalTime;
     routes.push_back(route);
 }
 
@@ -166,7 +171,7 @@ void Environment::writeRoutesToFile(std::string fileName){
 		for (auto route : routes)
 		{
             // Here we print the order of customers that we visit 
-            myfile << route->startTime << " " << route->fromlLat << " " << route->fromlon << " " << route->tolLat << " " << route->tolon;
+            myfile << route->startTime << " " << route->arrivalTime << " " << route->fromlLat << " " << route->fromlon << " " << route->tolLat << " " << route->tolon;
             myfile << std::endl;
 		}
 	}
