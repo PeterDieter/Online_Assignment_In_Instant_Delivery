@@ -30,6 +30,7 @@ private:
 	std::vector<Warehouse*> warehouses;							// Vector of pointers containing information on each warehouse
 	std::vector<Courier*> couriers;								// Vector of pointers containing  information on each courier
 	std::vector<Picker*> pickers;								// Vector of pointers  containing information on each picker
+	std::vector<Route*> routes;									// Vector of pointers  containing information on each route
 	Order* nextOrderBeingServed;								// Order that will be served next. Needed as we have two types of decision epoch: Order arriving and order being served (courier needs to be reassigned)
 	int currentTime;
 	int nbOrdersServed;
@@ -66,6 +67,12 @@ private:
 
 	// Function that updates the order that will be served next
 	void updateOrderBeingServedNext();
+
+	// Function that saves a route to the list of routes
+	void saveRoute(int startTime, double fromLat, double fromLon, double toLat, double toLon);
+
+	// Function that writes routes to file
+	void writeRoutesToFile(std::string fileName);
 
 	// Function to draw an inter arrival time based on rate specified in params
 	int drawFromExponentialDistribution(double lambda);
