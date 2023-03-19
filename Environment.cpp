@@ -135,13 +135,15 @@ void Environment::chooseCourierForOrder(Order* newOrder)
 
 void Environment::chooseWarehouseForCourier(Courier* courier)
 {
+    // draw service time needed to serve the client at the door
+    courier->assignedToOrder->serviceTimeAtClient = drawFromExponentialDistribution(params->meanServiceTimeAtClient);
     int indexClosestWarehouse;
     std::vector<int> distancesToWarehouses = params->travelTime.getRow(courier->assignedToOrder->client->clientID);
     indexClosestWarehouse = std::min_element(distancesToWarehouses.begin(), distancesToWarehouses.end())-distancesToWarehouses.begin();
     courier->assignedToWarehouse = warehouses[indexClosestWarehouse];
            
     // Compute the time the courier is available again, i.e., can leave the warehouse that we just assigned him to
-    courier->timeWhenAvailable = nextOrderBeingServed->arrivalTime + params->travelTime.get(nextOrderBeingServed->client->clientID, courier->assignedToWarehouse->wareID);
+    courier->timeWhenAvailable = nextOrderBeingServed->arrivalTime + courier->assignedToOrder->serviceTimeAtClient + params->travelTime.get(nextOrderBeingServed->client->clientID, courier->assignedToWarehouse->wareID);
     // Add the courier to the vector of assigned couriers at the respective warehouse
     courier->assignedToWarehouse->couriersAssigned.push_back(courier);
     // Increment the number of order that have been served
@@ -155,7 +157,7 @@ void Environment::chooseWarehouseForCourier(Courier* courier)
         latestArrivalTime = courier->timeWhenAvailable;
     }
     
-    saveRoute(nextOrderBeingServed->arrivalTime, courier->timeWhenAvailable, nextOrderBeingServed->client->lat, nextOrderBeingServed->client->lon, courier->assignedToWarehouse->lat, courier->assignedToWarehouse->lon);
+    saveRoute(nextOrderBeingServed->arrivalTime + courier->assignedToOrder->serviceTimeAtClient, courier->timeWhenAvailable, nextOrderBeingServed->client->lat, nextOrderBeingServed->client->lon, courier->assignedToWarehouse->lat, courier->assignedToWarehouse->lon);
     
     // Remove the order from the order that have not been served
     RemoveOrderFromVector(ordersAssignedToCourierButNotServed, nextOrderBeingServed);

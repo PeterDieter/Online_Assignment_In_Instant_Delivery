@@ -53,6 +53,7 @@ struct Order
 	Picker* assignedPicker;			// Picker assigned to order
 	int orderTime;					// Time the order arrives in the system
 	int timeToComission;			// Time it takes to comission the order
+	int serviceTimeAtClient;		// Time it takes to serve the client at the door
 	int arrivalTime;				// time the courier arrives at the client, i.e., the client is served
 };
 
@@ -107,6 +108,7 @@ public:
 	int nbPickers;							// Total number of pickers
 	double interArrivalTime;				// Inter arrival time of incoming orders
 	double meanCommissionTime;				// Mean time it takes to commission an order (exponential distributed)
+	double meanServiceTimeAtClient;			// Mean time it takes to serivce an order (at the client) (exponential distributed)
 	std::vector<Client> paramClients;		// Vector containing information on each client
 	std::vector<Quadrant> paramQuadrants;	// Vector containing information on each quadrant
 	std::vector<Warehouse> paramWarehouses;	// Vector containing information on each warehouse

@@ -22,7 +22,8 @@ Params::Params(std::string instanceName)
 	nbCouriers = 0;
 	nbPickers = 0;
 	interArrivalTime = 15;
-	meanCommissionTime = 80;
+	meanCommissionTime = 120;
+	meanServiceTimeAtClient = 60;
 	paramClients = std::vector<Client>(40000); // 40000 is an upper limit, can be increase ofc
 	paramWarehouses = std::vector<Warehouse>(30); // 30 is an upper limit, can be increased ofc
 	std::string content, content2, content3;
@@ -51,6 +52,10 @@ Params::Params(std::string instanceName)
 			else if (content == "MEAN_COMMISSION_TIME")
 				{
 					inputFile >> content2 >> meanCommissionTime;
+				}
+			else if (content == "MEAN_SERVICE_AT_CLIENT_TIME")
+				{
+					inputFile >> content2 >> meanServiceTimeAtClient;
 				}
 			else if (content == "WAREHOUSE_SECTION")
 				{
