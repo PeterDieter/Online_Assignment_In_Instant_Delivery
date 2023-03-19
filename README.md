@@ -21,3 +21,8 @@ where instanceName gives the path to the .txt file containing the instance infor
 ```
 ./optimalAssignment instances/instances900_8_3_30_120.txt
 ```
+
+Visualization of the problem (made in [plotRoutes.py](dataCode/plotRoutes.py)):
+
+<p style="text-align:center;">
+<img src="animation.gif" width="300" height="400" align="center"></p>

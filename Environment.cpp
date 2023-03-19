@@ -157,7 +157,7 @@ void Environment::chooseWarehouseForCourier(Courier* courier)
         latestArrivalTime = courier->timeWhenAvailable;
     }
     
-    saveRoute(nextOrderBeingServed->arrivalTime + courier->assignedToOrder->serviceTimeAtClient, courier->timeWhenAvailable, nextOrderBeingServed->client->lat, nextOrderBeingServed->client->lon, courier->assignedToWarehouse->lat, courier->assignedToWarehouse->lon);
+    saveRoute(nextOrderBeingServed->arrivalTime, courier->timeWhenAvailable, nextOrderBeingServed->client->lat, nextOrderBeingServed->client->lon, courier->assignedToWarehouse->lat, courier->assignedToWarehouse->lon);
     
     // Remove the order from the order that have not been served
     RemoveOrderFromVector(ordersAssignedToCourierButNotServed, nextOrderBeingServed);

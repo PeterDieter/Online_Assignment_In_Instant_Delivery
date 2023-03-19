@@ -5,6 +5,7 @@ import numpy as np
 import geopandas as gpd
 import matplotlib.pyplot as plt
 import matplotlib
+import matplotlib.patches as mpatches
 from shapely.geometry import Point
 import matplotlib.animation as ani
 from IPython.display import HTML
@@ -71,7 +72,7 @@ counterRoutes = 0
 for index, route in enumerate(routes):
     points = []
     counter = 0
-    for t in range(0,df["arrivalTime"].max(),20):
+    for t in range(0,df["arrivalTime"].max(),18):
         counter += 1
         show = 0
         step = 0
@@ -100,6 +101,9 @@ for index, route in enumerate(routes):
    
 route_coorindates = final_route_coordinates
 fig, ax = ox.plot_graph(projected_graph, node_size=0, edge_linewidth=0.5, show=False, close=False) # network
+fig.set_size_inches(4,5)
+ax.set_axis_off() # You don't actually need this line as the saved figure will not include the labels, ticks, etc, but I like to include it
+fig.subplots_adjust(left=0, bottom=0, right=1, top=1)
 warehousePoints.to_crs('EPSG:3395', inplace=True)
 warehousePoints.plot(ax=ax, color='red', label='warehouse', zorder = 3) # warehouses
 warehousePoints.crs = "EPSG:4326"
@@ -112,16 +116,23 @@ for j in range(n_routes):
         scatter_list.append(ax.scatter(route_coorindates[j][0][0], # x coordiante of the first node of the j route
                                     route_coorindates[j][0][1], # y coordiante of the first node of the j route
                                     alpha=1,
-                                    color="green",
+                                    s = 16,
+                                    label="courier",
+                                    color="blue",
                                     zorder = 2))
     else:
         scatter_list.append(ax.scatter(route_coorindates[j][0][0], # x coordiante of the first node of the j route
                             route_coorindates[j][0][1], # y coordiante of the first node of the j route
                             alpha=1,
-                            color="yellow",
+                            s = 16,
+                            color="green",
+                            label="order",
                             zorder = 1))
 
-
+red_patch = plt.Line2D([], [], color="red", marker="o", linewidth=0, label ="Warehouse")
+blue_patch = plt.Line2D([], [], color="blue", marker="o", linewidth=0, label ="Courier")
+green_patch = plt.Line2D([], [], color="green", marker="o", linewidth=0, label ="Order")
+ax.legend(loc=3,handles=[red_patch, blue_patch, green_patch])
     
 #plt.legend(frameon=False)
 
@@ -147,7 +158,7 @@ def animate(i):
                 scatter_list[j].set_offsets(np.c_[x_j, y_j])
                 scatter_list[j].set_alpha(0.9)
                 scatter_list[j].set_zorder(2)
-                scatter_list[j].set_color("green")
+                scatter_list[j].set_color("blue")
             else:
                 # Try to plot a scatter plot
                 x_j = route_coorindates[j][i][0]
@@ -155,7 +166,7 @@ def animate(i):
                 scatter_list[j].set_offsets(np.c_[x_j, y_j])
                 scatter_list[j].set_alpha(0.9)
                 scatter_list[j].set_zorder(1)
-                scatter_list[j].set_color("yellow")
+                scatter_list[j].set_color("green")
 
         except:
             # If i became > len(current_route) then continue to the next route
@@ -165,5 +176,5 @@ def animate(i):
 # Make the animation
 animation = ani.FuncAnimation(fig, animate, frames=counter)
 writergif = ani.PillowWriter(fps=10) 
-animation.save("animation.gif", writer=writergif, dpi=300)
+animation.save("animation.gif", writer=writergif, dpi=200, savefig_kwargs={"transparent": True, "facecolor": "none"})
 plt.show()
