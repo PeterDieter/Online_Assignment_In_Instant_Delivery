@@ -38,6 +38,7 @@ private:
 	int timeNextCourierArrivesAtOrder;
 	int totalWaitingTime;
 	int highestWaitingTimeOfAnOrder;
+	int latestArrivalTime;
 
 	// In this method we initialize the rest of the Data, such as warehouses, couriers, etc.
 	void initialize();
@@ -72,7 +73,7 @@ private:
 	void saveRoute(int startTime, int arrivalTime, double fromLat, double fromLon, double toLat, double toLon);
 
 	// Function that writes routes to file
-	void writeRoutesToFile(std::string fileName);
+	void writeRoutesAndOrdersToFile(std::string fileNameRoutes, std::string fileNameOrders);
 
 	// Function to draw an inter arrival time based on rate specified in params
 	int drawFromExponentialDistribution(double lambda);

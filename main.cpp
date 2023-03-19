@@ -18,7 +18,7 @@ int main(int argc, char * argv[])
 
   // Creating the Environment
   Environment environment(&params);
-  environment.simulate(3600);
+  environment.simulate(2400);
 
 
   // return 0 upon succesful completion

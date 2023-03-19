@@ -16,13 +16,16 @@ with open('data/getirStores.json') as fp:
     getirStores = json.load(fp)
 
 # shapeFile = gpd.read_file("data/Polygon_900s").loc[0, 'geometry']
-# G = ox.graph_from_polygon("shapeFile", network_type='drive')
+# G = ox.graph_from_polygon(shapeFile, network_type='drive', simplify=False)
 # ox.save_graphml(G, 'data/chicago.graphml')
 graph = ox.load_graphml("data/chicago.graphml")
 
 
 df = pd.read_csv('routes.txt', sep=" ", header=None)
 df.columns = ["startTime", "arrivalTime", "fLat", "fLon", "tLat", "tLon"]
+
+orders = pd.read_csv('orders.txt', sep=" ", header=None)
+orders.columns = ["orderTime", "arrivalTime", "Lat", "Lon"]
 
 warehouses = []
 for w in getirStores:
@@ -38,14 +41,17 @@ warehousePoints = gpd.GeoDataFrame(
     data, geometry=gpd.points_from_xy(data.Lon, data.Lat))
 warehousePoints.crs = "EPSG:4326"
 
+order_nodes = ox.nearest_nodes(graph, orders["Lon"], orders["Lat"])
+
 orig_nodes = ox.nearest_nodes(graph, df['fLon'], df['fLat'])
 dest_nodes = ox.nearest_nodes(graph, df['tLon'], df['tLat'])
 
-routes, lengths = [], []
+routes = []
 for orig_node, dest_node in zip(orig_nodes, dest_nodes):
     routes.append(nx.shortest_path(graph, source=orig_node, target=dest_node, weight='length'))
-    # lengths.append(nx.shortest_path_length(graph, source=orig_node, target=dest_node, weight='length'))
 
+for node in order_nodes:
+    routes.append([node])
 projected_graph = ox.project_graph(graph, to_crs="EPSG:3395")
 
 route_coorindates = []
@@ -61,43 +67,60 @@ n_routes = len(route_coorindates)
 max_route_len = max([len(x) for x in route_coorindates])
 
 final_route_coordinates = []
+counterRoutes = 0
 for index, route in enumerate(routes):
     points = []
     counter = 0
     for t in range(0,df["arrivalTime"].max(),20):
         counter += 1
         show = 0
-        if df.loc[index,"startTime"] < t and df.loc[index,"arrivalTime"] > t:
-            step = min(math.ceil((t-df.loc[index,"startTime"])/20), len(route)-1)
-            show = 1
-        elif df.loc[index,"startTime"] > t:
-            step = 0
+        step = 0
+        if counterRoutes < len(df):
+            color = "green"
+            if df.loc[index,"startTime"] <= t and df.loc[index,"arrivalTime"] > t:
+                ratio = (df.loc[index,"arrivalTime"]-df.loc[index,"startTime"])/len(route)
+                step = min(math.ceil((t-df.loc[index,"startTime"])/ratio), len(route)-1)
+                show = 1
         else:
-            step = len(route)-1
+            color = "yellow"
+            idx = index - len(df)
+            if orders.loc[idx,"orderTime"] < t and orders.loc[idx,"arrivalTime"] > t:
+                step = 0
+                show = 1
+        
         x = projected_graph.nodes[route[step]]['x']
         y = projected_graph.nodes[route[step]]['y']
         if show:
-            points.append([x, y, show])
+            points.append([x, y, show, color])
         else:
-            points.append([2912, y, show])
+            points.append([2912, y, show, color])
 
     final_route_coordinates.append(points)
+    counterRoutes += 1 
    
 route_coorindates = final_route_coordinates
 fig, ax = ox.plot_graph(projected_graph, node_size=0, edge_linewidth=0.5, show=False, close=False) # network
 warehousePoints.to_crs('EPSG:3395', inplace=True)
-warehousePoints.plot(ax=ax, color='red', label='warehouse', zorder = 2) # warehouses
+warehousePoints.plot(ax=ax, color='red', label='warehouse', zorder = 3) # warehouses
 warehousePoints.crs = "EPSG:4326"
 
 # Each list is a route. Length of this list = n_routes
 scatter_list = []
 # Plot the first scatter plot (starting nodes = initial car locations = hospital locations)
 for j in range(n_routes):
-    scatter_list.append(ax.scatter(route_coorindates[j][0][0], # x coordiante of the first node of the j route
-                                route_coorindates[j][0][1], # y coordiante of the first node of the j route
-                                alpha=1,
-                                color="green",
-                                zorder = 1))
+    if (route_coorindates[j][0][3] == "green"):
+        scatter_list.append(ax.scatter(route_coorindates[j][0][0], # x coordiante of the first node of the j route
+                                    route_coorindates[j][0][1], # y coordiante of the first node of the j route
+                                    alpha=1,
+                                    color="green",
+                                    zorder = 2))
+    else:
+        scatter_list.append(ax.scatter(route_coorindates[j][0][0], # x coordiante of the first node of the j route
+                            route_coorindates[j][0][1], # y coordiante of the first node of the j route
+                            alpha=1,
+                            color="yellow",
+                            zorder = 1))
+
 
     
 #plt.legend(frameon=False)
@@ -117,11 +140,22 @@ def animate(i):
         # Some routes are shorter than others
         # Therefore we need to use try except with continue construction
         try:
-            # Try to plot a scatter plot
-            x_j = route_coorindates[j][i][0]
-            y_j = route_coorindates[j][i][1]
-            scatter_list[j].set_offsets(np.c_[x_j, y_j])
-            scatter_list[j].set_alpha(1)
+            if (route_coorindates[j][0][3] == "green"):
+                # Try to plot a scatter plot
+                x_j = route_coorindates[j][i][0]
+                y_j = route_coorindates[j][i][1]
+                scatter_list[j].set_offsets(np.c_[x_j, y_j])
+                scatter_list[j].set_alpha(0.9)
+                scatter_list[j].set_zorder(2)
+                scatter_list[j].set_color("green")
+            else:
+                # Try to plot a scatter plot
+                x_j = route_coorindates[j][i][0]
+                y_j = route_coorindates[j][i][1]
+                scatter_list[j].set_offsets(np.c_[x_j, y_j])
+                scatter_list[j].set_alpha(0.9)
+                scatter_list[j].set_zorder(1)
+                scatter_list[j].set_color("yellow")
 
         except:
             # If i became > len(current_route) then continue to the next route
@@ -130,6 +164,6 @@ def animate(i):
 
 # Make the animation
 animation = ani.FuncAnimation(fig, animate, frames=counter)
-writergif = ani.PillowWriter(fps=1) 
-animation.save("animation.gif", writer=writergif, dpi=600)
+writergif = ani.PillowWriter(fps=10) 
+animation.save("animation.gif", writer=writergif, dpi=300)
 plt.show()

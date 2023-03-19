@@ -26,6 +26,7 @@ void Environment::initialize()
     int pickerCounter = 0;
     totalWaitingTime = 0;
     highestWaitingTimeOfAnOrder = 0;
+    latestArrivalTime = 0;
     nbOrdersServed = 0;
     couriers = std::vector<Courier*>(0);
     pickers = std::vector<Picker*>(0);
@@ -76,6 +77,7 @@ void Environment::initOrder(int currentTime, Order* o)
     int randomIDex = params->rng() % params->nbClients;
     o->client = &params->paramClients[randomIDex];
     o->orderTime = currentTime;
+    o->arrivalTime = -1;
 }
 
 int Environment::drawFromExponentialDistribution(double lambda)
@@ -116,6 +118,10 @@ void Environment::chooseCourierForOrder(Order* newOrder)
         nextOrderBeingServed = newOrder;
     }
 
+    if (latestArrivalTime < newOrder->arrivalTime){
+        latestArrivalTime = newOrder->arrivalTime;
+    }
+
     saveRoute(std::max(currentTime, std::max(newOrder->assignedCourier->timeWhenAvailable, newOrder->assignedPicker->timeWhenAvailable)), newOrder->arrivalTime, newOrder->assignedCourier->assignedToWarehouse->lat, newOrder->assignedCourier->assignedToWarehouse->lon, newOrder->client->lat, newOrder->client->lon);
 
     // Remove order from vector of orders that have not been assigned to a courier yet (If applicable)   
@@ -145,6 +151,9 @@ void Environment::chooseWarehouseForCourier(Courier* courier)
     {
         highestWaitingTimeOfAnOrder = courier->assignedToOrder->arrivalTime - courier->assignedToOrder->orderTime;
     }
+    if (latestArrivalTime < courier->timeWhenAvailable){
+        latestArrivalTime = courier->timeWhenAvailable;
+    }
     
     saveRoute(nextOrderBeingServed->arrivalTime, courier->timeWhenAvailable, nextOrderBeingServed->client->lat, nextOrderBeingServed->client->lon, courier->assignedToWarehouse->lat, courier->assignedToWarehouse->lon);
     
@@ -163,9 +172,9 @@ void Environment::saveRoute(int startTime, int arrivalTime, double fromLat, doub
     routes.push_back(route);
 }
 
-void Environment::writeRoutesToFile(std::string fileName){
-	std::cout << "----- WRITING Routes IN : " << fileName << std::endl;
-	std::ofstream myfile(fileName);
+void Environment::writeRoutesAndOrdersToFile(std::string fileNameRoutes, std::string fileNameOrders){
+	std::cout << "----- WRITING Routes IN : " << fileNameRoutes << " and Orders IN : " << fileNameOrders << std::endl;
+	std::ofstream myfile(fileNameRoutes);
 	if (myfile.is_open())
 	{
 		for (auto route : routes)
@@ -175,8 +184,26 @@ void Environment::writeRoutesToFile(std::string fileName){
             myfile << std::endl;
 		}
 	}
-	else std::cout << "----- IMPOSSIBLE TO OPEN: " << fileName << std::endl;
+	else std::cout << "----- IMPOSSIBLE TO OPEN: " << fileNameRoutes << std::endl;
+    // Now the orders
+    std::ofstream myfile2(fileNameOrders);
+	if (myfile2.is_open())
+	{
+		for (auto order : orders)
+		{
+            if (order->arrivalTime == -1){
+                // Here we print the order of customers that we visit 
+                myfile2 << order->orderTime << " " << latestArrivalTime << " " << order->client->lat << " " << order->client->lon;
+                myfile2 << std::endl;
+            }else{
+                myfile2 << order->orderTime << " " << order->arrivalTime << " " << order->client->lat << " " << order->client->lon;
+                myfile2 << std::endl;
+            }
+		}
+	}
+	else std::cout << "----- IMPOSSIBLE TO OPEN: " << fileNameOrders << std::endl;
 }
+
 
 void Environment::RemoveOrderFromVector(std::vector<Order*> & V, Order* orderToDelete) {
     V.erase(
@@ -244,10 +271,9 @@ void Environment::simulate(int timeLimit)
     currentTime = 0;
     timeCustomerArrives = 0;
     timeNextCourierArrivesAtOrder = INT_MAX;
-    while (currentTime <= timeLimit){
+    while (currentTime <= timeLimit || ordersAssignedToCourierButNotServed.size() > 0){
         // Keep track of current time
         currentTime = std::min(timeCustomerArrives, timeNextCourierArrivesAtOrder);
-    
         if (timeCustomerArrives < timeNextCourierArrivesAtOrder && currentTime <= timeLimit){
             timeCustomerArrives += drawFromExponentialDistribution(params->interArrivalTime);
             // Draw new order and assign it to warehouse, picker and courier. MUST BE IN THAT ORDER!!!
@@ -264,7 +290,7 @@ void Environment::simulate(int timeLimit)
             }else{ // else we add the order to list of orders that have not been assigned to a courier yet
                 newOrder->assignedWarehouse->ordersNotAssignedToCourier.push_back(newOrder);    
             }
-        }else if (currentTime <= timeLimit){ // when a courier arrives at an order
+        }else { // when a courier arrives at an order
             Courier* c = nextOrderBeingServed->assignedCourier;
             // We choose a warehouse for the courier
             chooseWarehouseForCourier(c);
@@ -277,8 +303,8 @@ void Environment::simulate(int timeLimit)
         }
     }
     std::cout<<"----- Simulation finished -----"<<std::endl;
-    std::cout<<"----- Number of orders who arrived: " << orders.size() << " and served: " << nbOrdersServed << ". Mean waiting time: " << totalWaitingTime/nbOrdersServed <<" seconds. Highest waiting time: " << highestWaitingTimeOfAnOrder <<" seconds. -----" <<std::endl;
-    writeRoutesToFile("routes.txt");
+    std::cout<<"----- Number of orders that arrived in the system: " << orders.size() << " and served: " << nbOrdersServed << ". Mean waiting time: " << totalWaitingTime/nbOrdersServed <<" seconds. Highest waiting time: " << highestWaitingTimeOfAnOrder <<" seconds. -----" <<std::endl;
+    writeRoutesAndOrdersToFile("routes.txt", "orders.txt");
 }
 
 
