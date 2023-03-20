@@ -4,6 +4,19 @@ import json
 from matplotlib import pyplot as plt 
 
 def create_instance(fileName: str, limit: int=900, couriersPerWarehouse: int=5, pickersPerWarehouse: int=3, interArrivalTime: int=15, meanComissionTime: int=120, meanServiceTimeAtClient: int=60):
+    """Create a .txt file of a problem instance
+    Args:
+        fileName (str): File in which we save the instance parameters
+        limit (int): Clients whose minimum distance (in seconds) to a warehouse is above this limit are excluded 
+        couriersPerWarehouse (int): number of couriers that a warehouse has at the start
+        pickersPerWarehouse (int): number of pickers that a warehouse has
+        interArrivalTime (int): arrival rate (exponentially distributed) of orders (in seconds)
+        meanComissionTime (int): Time a picker needs on average to comission an order (expoentially distributed) (in seconds)
+        meanServiceTimeAtClient (int): Mean time a courier needs at the clients door to deliver the order (expoentially distributed) (in seconds)
+    Returns:
+        None 
+    """
+    
     df = pd.read_csv("data/allDurations15.csv", header=0) 
     df = df.to_numpy()
     clients = df[:,:3]
@@ -64,4 +77,4 @@ def create_instance(fileName: str, limit: int=900, couriersPerWarehouse: int=5, 
 
 
 if __name__ == "__main__":
-    create_instance(fileName = "instance900_8_3_30_120_60", limit=900, couriersPerWarehouse=4, pickersPerWarehouse=3, interArrivalTime=60, meanComissionTime=120, meanServiceTimeAtClient=60)
+    create_instance(fileName = "instance_900_8_3_30_120_60", limit=900, couriersPerWarehouse=4, pickersPerWarehouse=3, interArrivalTime=60, meanComissionTime=120, meanServiceTimeAtClient=60)
