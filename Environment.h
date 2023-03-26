@@ -11,20 +11,20 @@
 #include <random>
 
 #include "Matrix.h"
-#include "Params.h"
+#include "Data.h"
 #include "Environment.h"
 
 class Environment
 {
 public:
 	// Constructor 
-	Environment(Params* params);
+	Environment(Data* data);
 
 	// Function to perform a simulation
 	void simulate(int timeLimit);
 
 private:
-	Params* params;												// Problem parameters
+	Data* data;												// Problem parameters
 	std::vector<Order*> orders;									// Vector of pointers to orders. containing information on each order
 	std::vector<Order*> ordersAssignedToCourierButNotServed;	// Vector of orders that have not been served yet
 	std::vector<Warehouse*> warehouses;							// Vector of pointers containing information on each warehouse
@@ -39,6 +39,7 @@ private:
 	int totalWaitingTime;
 	int highestWaitingTimeOfAnOrder;
 	int latestArrivalTime;
+	int objectiveValue; // Objective value that we try to minimize
 
 	// In this method we initialize the rest of the Data, such as warehouses, couriers, etc.
 	void initialize();
@@ -75,7 +76,7 @@ private:
 	// Function that writes routes to file
 	void writeRoutesAndOrdersToFile(std::string fileNameRoutes, std::string fileNameOrders);
 
-	// Function to draw an inter arrival time based on rate specified in params
+	// Function to draw an inter arrival time based on rate specified in data
 	int drawFromExponentialDistribution(double lambda);
 
 };

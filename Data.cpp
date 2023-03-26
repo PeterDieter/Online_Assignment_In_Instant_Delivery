@@ -7,13 +7,13 @@
 #include <cmath>
 #include <cstdio>
 
-#include "Params.h"
+#include "Data.h"
 #include "Matrix.h"
 #include "xorshift128.h"
 
 
 
-Params::Params(std::string instanceName)
+Data::Data(std::string instanceName)
 {
 	rng = XorShift128(42);
 	nbClients = 0;
@@ -40,10 +40,6 @@ Params::Params(std::string instanceName)
 			else if (content == "NUMBER_WAREHOUSES")
 				{
 					inputFile >> content2 >> nbWarehouses;
-				}
-			else if (content == "NUMBER_QUADRANTS")
-				{
-					inputFile >> content2 >> nbQuadrants;
 				}
 			else if (content == "INTER_ARRIVAL_TIME")
 				{
@@ -75,7 +71,7 @@ Params::Params(std::string instanceName)
 					// Reading client data
 					for (int i = 0; i < nbClients; i++)
 					{
-						inputFile >> paramClients[i].clientID >> paramClients[i].lon >> paramClients[i].lat >> paramClients[i].inQuadrantID;
+						inputFile >> paramClients[i].clientID >> paramClients[i].lon >> paramClients[i].lat;
 					}
 								// Reduce the size of the vector of clients if possible
 					paramClients.resize(nbClients);

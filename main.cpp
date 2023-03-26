@@ -3,21 +3,21 @@
 #include <typeinfo>
 
 
-#include "Params.h"
+#include "Data.h"
 #include "Environment.h"
 
 int main(int argc, char * argv[])
 {
   // Reading the data file and initializing some data structures
   std::cout << "----- READING DATA SET " << argv[1] << " -----" << std::endl;
-  Params params(argv[1]);
-  std::cout << "----- Instance with " << params.nbClients << " Clients, " << params.nbWarehouses << " Warehouses, and " << params.nbQuadrants << " Quadrants -----" << std::endl;
+  Data data(argv[1]);
+  std::cout << "----- Instance with " << data.nbClients << " Clients, " << data.nbWarehouses << " Warehouses, and " << data.nbQuadrants << " Quadrants -----" << std::endl;
 
   // The optimization code should come here
 
 
   // Creating the Environment
-  Environment environment(&params);
+  Environment environment(&data);
   environment.simulate(2400);
 
 

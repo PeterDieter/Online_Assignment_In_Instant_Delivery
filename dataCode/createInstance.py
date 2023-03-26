@@ -33,10 +33,6 @@ def create_instance(fileName: str, limit: int=900, couriersPerWarehouse: int=5, 
     clients = np.delete(clients, notInLimit, axis=0)
     matrix = np.delete(matrix, notInLimit, axis=0)
 
-    # For now we just assign each customer to the 0 quadrant
-    clients = np.c_[clients, np.zeros(len(clients))]
-
-
     with open("instances/"+fileName+".txt", 'w') as f:
         f.write("\n".join([
             "{} : {}".format(k, v)
@@ -44,7 +40,6 @@ def create_instance(fileName: str, limit: int=900, couriersPerWarehouse: int=5, 
                 ("NAME", fileName),
                 ("NUMBER_CLIENTS", len(clients)),
                 ("NUMBER_WAREHOUSES", len(warehouses)),
-                ("NUMBER_QUADRANTS", 1),
                 ("INTER_ARRIVAL_TIME", interArrivalTime),
                 ("MEAN_COMMISSION_TIME", meanComissionTime),
                 ("MEAN_SERVICE_AT_CLIENT_TIME", meanServiceTimeAtClient)]
@@ -61,8 +56,8 @@ def create_instance(fileName: str, limit: int=900, couriersPerWarehouse: int=5, 
 
         f.write("CLIENT_SECTION\n")
         f.write("\n".join([
-            "{}\t{}\t{}\t{}".format(i, y, z, int(q))
-            for i, (x, y, z, q) in enumerate(clients)
+            "{}\t{}\t{}".format(i, y, z)
+            for i, (x, y, z) in enumerate(clients)
         ]))
         f.write("\n")
 
