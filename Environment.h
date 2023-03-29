@@ -21,7 +21,7 @@ public:
 	Environment(Data* data);
 
 	// Function to perform a simulation
-	void simulate(int timeLimit);
+	void simulate(std::string policy, int timeLimit);
 
 private:
 	Data* data;												// Problem parameters
@@ -40,6 +40,12 @@ private:
 	int highestWaitingTimeOfAnOrder;
 	int latestArrivalTime;
 	int objectiveValue; // Objective value that we try to minimize
+
+
+	// In this method we apply the nearest warehouse policy.
+	void nearestWarehousePolicy(int timelimit);
+	// In this method we train a REINFORCE algorithm
+	void trainREINFORCE(int timelimit);
 
 	// In this method we initialize the rest of the Data, such as warehouses, couriers, etc.
 	void initialize();

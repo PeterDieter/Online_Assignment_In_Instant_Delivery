@@ -8,6 +8,7 @@
 #include <cstdio>
 #include <random>
 
+#include <torch/torch.h>
 #include "Data.h"
 #include "Matrix.h"
 #include "Environment.h"
@@ -268,7 +269,8 @@ void Environment::updateOrderBeingServedNext(){
     }
 }
 
-void Environment::simulate(int timeLimit)
+
+void Environment::nearestWarehousePolicy(int timeLimit)
 {
     std::cout<<"----- Simulation starts -----"<<std::endl;
     // Initialize data structures
@@ -313,5 +315,65 @@ void Environment::simulate(int timeLimit)
     std::cout<<"----- Number of orders that arrived in the system: " << orders.size() << " and served: " << nbOrdersServed << ". Mean waiting time: " << totalWaitingTime/nbOrdersServed <<" seconds. Highest waiting time: " << highestWaitingTimeOfAnOrder <<" seconds. -----" <<std::endl;
     writeRoutesAndOrdersToFile("data/animationData/routes.txt", "data/animationData/orders.txt");
 }
+
+void Environment::trainREINFORCE(int timeLimit)
+{
+    std::cout<<"----- Training REINFORCE starts -----"<<std::endl;
+    torch::Tensor tensor = torch::rand({2, 3});
+    std::cout << tensor << std::endl;
+    for (int epoch = 0; epoch < 5; epoch++) {
+        // Initialize data structures
+        initialize();
+        // Start with simulation
+        currentTime = 0;
+        timeCustomerArrives = 0;
+        timeNextCourierArrivesAtOrder = INT_MAX;
+        while (currentTime <= timeLimit || ordersAssignedToCourierButNotServed.size() > 0){
+            // Keep track of current time
+            currentTime = std::min(timeCustomerArrives, timeNextCourierArrivesAtOrder);
+            if (timeCustomerArrives < timeNextCourierArrivesAtOrder && currentTime <= timeLimit){
+                timeCustomerArrives += drawFromExponentialDistribution(data->interArrivalTime);
+                // Draw new order and assign it to warehouse, picker and courier. MUST BE IN THAT ORDER!!!
+                Order* newOrder = new Order;
+                initOrder(currentTime, newOrder);
+                orders.push_back(newOrder);
+                // We immediately assign the order to a warehouse and a picker
+                chooseWarehouseForOrder(newOrder);
+                choosePickerForOrder(newOrder);
+                // If there are couriers assigned to the warehouse, we can assign a courier to the order
+                if (newOrder->assignedWarehouse->couriersAssigned.size()>0){
+                    chooseCourierForOrder(newOrder);
+                    ordersAssignedToCourierButNotServed.push_back(newOrder);
+                }else{ // else we add the order to list of orders that have not been assigned to a courier yet
+                    newOrder->assignedWarehouse->ordersNotAssignedToCourier.push_back(newOrder);    
+                }
+            }else { // when a courier arrives at an order
+                Courier* c = nextOrderBeingServed->assignedCourier;
+                // We choose a warehouse for the courier
+                chooseWarehouseForCourier(c);
+                // If the chosen warehouse has order that have not been assigned to a courier yet, we can now assign the order to a courier
+                if (c->assignedToWarehouse->ordersNotAssignedToCourier.size()>0){
+                    Order* orderToAssignToCourier = c->assignedToWarehouse->ordersNotAssignedToCourier[0];
+                    chooseCourierForOrder(orderToAssignToCourier);
+                    ordersAssignedToCourierButNotServed.push_back(orderToAssignToCourier);
+                }
+            }
+        }
+    }
+   
+    std::cout<<"----- REINFORCE training finished -----"<<std::endl;
+}
+
+void Environment::simulate(std::string policy, int timeLimit)
+{
+    if (policy == "nearestWarehouse"){
+        nearestWarehousePolicy(timeLimit);
+    }else if (policy == "REINFORCE"){
+        trainREINFORCE(timeLimit);
+    }
+
+}
+
+
 
 

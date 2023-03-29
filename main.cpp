@@ -13,12 +13,9 @@ int main(int argc, char * argv[])
   Data data(argv[1]);
   std::cout << "----- Instance with " << data.nbClients << " Clients, " << data.nbWarehouses << " Warehouses, and " << data.nbQuadrants << " Quadrants -----" << std::endl;
 
-  // The optimization code should come here
-
-
   // Creating the Environment
   Environment environment(&data);
-  environment.simulate(2400);
+  environment.simulate(argv[2], 2400);
 
 
   // return 0 upon succesful completion

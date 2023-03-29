@@ -2,4 +2,7 @@
 cache/
 __pycache__/
 *.o
-optimalAssignment
+onlineAssignment
+CMakeFiles/
+CMakeCache.txt
+cmake_install.cmake
