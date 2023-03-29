@@ -10,6 +10,7 @@
 #include <chrono>
 #include <random>
 
+#include <torch/torch.h>
 #include "Matrix.h"
 #include "Data.h"
 #include "Environment.h"
@@ -85,7 +86,31 @@ private:
 	// Function to draw an inter arrival time based on rate specified in data
 	int drawFromExponentialDistribution(double lambda);
 
-};
+	// Define a new Module.
+	struct neuralNetwork : torch::nn::Module {
+		neuralNetwork(int64_t inputSize, int64_t outputSize) {
+			fc1 = register_module("fc1", torch::nn::Linear(inputSize, 64));
+			fc2 = register_module("fc2", torch::nn::Linear(64, 32));
+			fc3 = register_module("fc3", torch::nn::Linear(32, outputSize));
+		}
 
+		// Implement the Net's algorithm.
+		torch::Tensor forward(torch::Tensor x) {
+			// Use one of many tensor manipulation functions.
+			x = torch::relu(fc1->forward(x.reshape({x.size(0), x.size(1)})));
+			//x = torch::dropout(x, /*p=*/0.5, /*train=*/is_training());
+			x = torch::relu(fc2->forward(x));
+			x = torch::softmax(fc3->forward(x), /*dim=*/1);
+			return x;
+		}
+
+		// Use one of many "standard library" modules.
+		torch::nn::Linear fc1{nullptr}, fc2{nullptr}, fc3{nullptr};
+	};
+
+	// Functions that assigns order to a warehouse with the REINFORCE algorithm
+	void warehouseForOrderREINFORCE(Order* newOrder, neuralNetwork n);
+
+};
 
 #endif

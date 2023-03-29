@@ -19,6 +19,7 @@ Environment::Environment(Data* data) : data(data)
     std::cout<<"----- Create Environment -----"<<std::endl;
 }
 
+
 void Environment::initialize()
 {
     
@@ -316,12 +317,30 @@ void Environment::nearestWarehousePolicy(int timeLimit)
     writeRoutesAndOrdersToFile("data/animationData/routes.txt", "data/animationData/orders.txt");
 }
 
+
+void Environment::warehouseForOrderREINFORCE(Order* newOrder, neuralNetwork n)
+{
+    torch::Tensor tensor = torch::randn({1, 5});
+    torch::Tensor prediction = n.forward(tensor);
+    int indexWarehouse = torch::argmax(prediction).item<int>();
+    // Execute the model on the input data.
+    newOrder->assignedWarehouse = warehouses[indexWarehouse];
+    newOrder->accepted = true;
+}
+
+
 void Environment::trainREINFORCE(int timeLimit)
 {
     std::cout<<"----- Training REINFORCE starts -----"<<std::endl;
-    torch::Tensor tensor = torch::rand({2, 3});
-    std::cout << tensor << std::endl;
+    // Create neural network where each output node is assigned to a warehouse and one extra node for the reject decision
+    neuralNetwork net(5, data->nbWarehouses+1);
+    // Instantiate an SGD optimization algorithm to update our Net's parameters.
+    torch::optim::SGD optimizer(net.parameters(), /*lr=*/0.01);
+
     for (int epoch = 0; epoch < 5; epoch++) {
+        std::cout<<"Iteration "<< epoch <<std::endl;
+        // Reset gradients of neural network.
+        optimizer.zero_grad();
         // Initialize data structures
         initialize();
         // Start with simulation
@@ -338,7 +357,7 @@ void Environment::trainREINFORCE(int timeLimit)
                 initOrder(currentTime, newOrder);
                 orders.push_back(newOrder);
                 // We immediately assign the order to a warehouse and a picker
-                chooseWarehouseForOrder(newOrder);
+                warehouseForOrderREINFORCE(newOrder, net);
                 choosePickerForOrder(newOrder);
                 // If there are couriers assigned to the warehouse, we can assign a courier to the order
                 if (newOrder->assignedWarehouse->couriersAssigned.size()>0){
