@@ -98,7 +98,7 @@ private:
 		torch::Tensor forward(torch::Tensor x) {
 			// Use one of many tensor manipulation functions.
 			x = torch::relu(fc1->forward(x.reshape({x.size(0), x.size(1)})));
-			//x = torch::dropout(x, /*p=*/0.5, /*train=*/is_training());
+			x = torch::dropout(x, /*p=*/0.5, /*train=*/is_training());
 			x = torch::relu(fc2->forward(x));
 			x = torch::softmax(fc3->forward(x), /*dim=*/1);
 			return x;
@@ -108,8 +108,10 @@ private:
 		torch::nn::Linear fc1{nullptr}, fc2{nullptr}, fc3{nullptr};
 	};
 
-	// Functions that assigns order to a warehouse with the REINFORCE algorithm
+	// Function that assigns order to a warehouse with the REINFORCE algorithm
 	void warehouseForOrderREINFORCE(Order* newOrder, neuralNetwork n);
+	// Function that returns the state as a tensor
+	torch::Tensor getState(Order* order);
 
 };
 

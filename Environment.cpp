@@ -30,6 +30,7 @@ void Environment::initialize()
     highestWaitingTimeOfAnOrder = 0;
     latestArrivalTime = 0;
     nbOrdersServed = 0;
+    ordersAssignedToCourierButNotServed = std::vector<Order*>(0);
     couriers = std::vector<Courier*>(0);
     pickers = std::vector<Picker*>(0);
     orders = std::vector<Order*>(0);
@@ -44,6 +45,7 @@ void Environment::initialize()
         newWarehouse->lon = data->paramWarehouses[wID].lon;
         newWarehouse->initialNbCouriers = data->paramWarehouses[wID].initialNbCouriers;
         newWarehouse->initialNbPickers = data->paramWarehouses[wID].initialNbPickers;
+        newWarehouse->ordersNotAssignedToCourier = std::vector<Order*>(0);
         for (int cID = 0; cID < newWarehouse->initialNbCouriers; cID++)
         {
             Courier* newCourier = new Courier;
@@ -90,23 +92,12 @@ int Environment::drawFromExponentialDistribution(double lambda)
     return round(exp.operator() (data->rng));
 }
 
-void Environment::chooseWarehouseForOrder(Order* newOrder)
-{
-    // For now we just assign the order to the closest warehouse
-    int indexClosestWarehouse;
-    std::vector<int> distancesToWarehouses = data->travelTime.getRow(newOrder->client->clientID);
-    indexClosestWarehouse = std::min_element(distancesToWarehouses.begin(), distancesToWarehouses.end())-distancesToWarehouses.begin();
-    newOrder->assignedWarehouse = warehouses[indexClosestWarehouse];
-    newOrder->accepted = true;
-}
-
 void Environment::choosePickerForOrder(Order* newOrder) 
 {
     // We choose the picker who is available fastest
     newOrder->assignedPicker = getFastestAvailablePicker(newOrder->assignedWarehouse);
     // We set the time the picker is available again to the maximum of either the previous availability time or the current time, plus the time needed to comission the order
     newOrder->assignedPicker->timeWhenAvailable = std::max(newOrder->assignedPicker->timeWhenAvailable, currentTime) + newOrder->timeToComission;
-    newOrder->assignedPicker->assignedToOrders.push_back(newOrder);
 }
 
 void Environment::chooseCourierForOrder(Order* newOrder)
@@ -131,7 +122,7 @@ void Environment::chooseCourierForOrder(Order* newOrder)
     RemoveOrderFromVector(newOrder->assignedWarehouse->ordersNotAssignedToCourier, newOrder);
     // Remove courier from vector of couriers assigned to warehouse
     RemoveCourierFromVector(newOrder->assignedWarehouse->couriersAssigned, newOrder->assignedCourier);
-    newOrder->assignedCourier->assignedToWarehouse = nullptr;
+    //newOrder->assignedCourier->assignedToWarehouse = nullptr;
     newOrder->assignedCourier->timeWhenAvailable = INT_MAX;
 }
 
@@ -139,12 +130,7 @@ void Environment::chooseCourierForOrder(Order* newOrder)
 void Environment::chooseWarehouseForCourier(Courier* courier)
 {
     // draw service time needed to serve the client at the door
-    courier->assignedToOrder->serviceTimeAtClient = drawFromExponentialDistribution(data->meanServiceTimeAtClient);
-    int indexClosestWarehouse;
-    std::vector<int> distancesToWarehouses = data->travelTime.getRow(courier->assignedToOrder->client->clientID);
-    indexClosestWarehouse = std::min_element(distancesToWarehouses.begin(), distancesToWarehouses.end())-distancesToWarehouses.begin();
-    courier->assignedToWarehouse = warehouses[indexClosestWarehouse];
-           
+    courier->assignedToOrder->serviceTimeAtClient = drawFromExponentialDistribution(data->meanServiceTimeAtClient);   
     // Compute the time the courier is available again, i.e., can leave the warehouse that we just assigned him to
     courier->timeWhenAvailable = nextOrderBeingServed->arrivalTime + courier->assignedToOrder->serviceTimeAtClient + data->travelTime.get(nextOrderBeingServed->client->clientID, courier->assignedToWarehouse->wareID);
     // Add the courier to the vector of assigned couriers at the respective warehouse
@@ -317,15 +303,44 @@ void Environment::nearestWarehousePolicy(int timeLimit)
     writeRoutesAndOrdersToFile("data/animationData/routes.txt", "data/animationData/orders.txt");
 }
 
+void Environment::chooseWarehouseForOrder(Order* newOrder)
+{
+    // For now we just assign the order to the closest warehouse
+    int indexClosestWarehouse;
+    std::vector<int> distancesToWarehouses = data->travelTime.getRow(newOrder->client->clientID);
+    indexClosestWarehouse = std::min_element(distancesToWarehouses.begin(), distancesToWarehouses.end())-distancesToWarehouses.begin();
+    newOrder->assignedWarehouse = warehouses[indexClosestWarehouse];
+    newOrder->accepted = true;
+}
+
+torch::Tensor Environment::getState(Order* order){
+    // For now, the state is only the distances to the warehouses
+    std::vector<int> distancesToWarehouses = data->travelTime.getRow(order->client->clientID);
+    // vector to tensor
+    auto options = torch::TensorOptions().dtype(at::kInt);
+    torch::Tensor inputs = torch::from_blob(distancesToWarehouses.data(), {1, data->nbWarehouses}, options).clone().to(torch::kFloat);
+
+    return inputs;
+}
 
 void Environment::warehouseForOrderREINFORCE(Order* newOrder, neuralNetwork n)
 {
-    torch::Tensor tensor = torch::randn({1, 5});
-    torch::Tensor prediction = n.forward(tensor);
-    int indexWarehouse = torch::argmax(prediction).item<int>();
-    // Execute the model on the input data.
-    newOrder->assignedWarehouse = warehouses[indexWarehouse];
-    newOrder->accepted = true;
+    torch::Tensor state = getState(newOrder);
+    torch::Tensor prediction = n.forward(state);
+    // Prediction tensor to vector
+    std::vector<float> predVector(prediction.data_ptr<float>(), prediction.data_ptr<float>() + prediction.numel());
+    std::discrete_distribution<> discrete_dist(predVector.begin(), predVector.end());
+    // Choose based on the distribution
+    int indexWarehouse = discrete_dist(data->rng);
+    // If the index is nb.warehouses, we reject the order
+    if (indexWarehouse > data->nbWarehouses -1){
+        newOrder->accepted = false;
+    }else{
+        newOrder->assignedWarehouse = warehouses[indexWarehouse];
+        newOrder->accepted = true;
+    }
+
+    
 }
 
 
@@ -333,11 +348,11 @@ void Environment::trainREINFORCE(int timeLimit)
 {
     std::cout<<"----- Training REINFORCE starts -----"<<std::endl;
     // Create neural network where each output node is assigned to a warehouse and one extra node for the reject decision
-    neuralNetwork net(5, data->nbWarehouses+1);
+    neuralNetwork net(data->nbWarehouses, data->nbWarehouses+1);
     // Instantiate an SGD optimization algorithm to update our Net's parameters.
     torch::optim::SGD optimizer(net.parameters(), /*lr=*/0.01);
 
-    for (int epoch = 0; epoch < 5; epoch++) {
+    for (int epoch = 0; epoch < 2; epoch++) {
         std::cout<<"Iteration "<< epoch <<std::endl;
         // Reset gradients of neural network.
         optimizer.zero_grad();
@@ -358,14 +373,17 @@ void Environment::trainREINFORCE(int timeLimit)
                 orders.push_back(newOrder);
                 // We immediately assign the order to a warehouse and a picker
                 warehouseForOrderREINFORCE(newOrder, net);
-                choosePickerForOrder(newOrder);
-                // If there are couriers assigned to the warehouse, we can assign a courier to the order
-                if (newOrder->assignedWarehouse->couriersAssigned.size()>0){
-                    chooseCourierForOrder(newOrder);
-                    ordersAssignedToCourierButNotServed.push_back(newOrder);
-                }else{ // else we add the order to list of orders that have not been assigned to a courier yet
-                    newOrder->assignedWarehouse->ordersNotAssignedToCourier.push_back(newOrder);    
+                if (newOrder->accepted){
+                    choosePickerForOrder(newOrder);
+                    // If there are couriers assigned to the warehouse, we can assign a courier to the order
+                    if (newOrder->assignedWarehouse->couriersAssigned.size()>0){
+                        chooseCourierForOrder(newOrder);
+                        ordersAssignedToCourierButNotServed.push_back(newOrder);
+                    }else{ // else we add the order to list of orders that have not been assigned to a courier yet
+                        newOrder->assignedWarehouse->ordersNotAssignedToCourier.push_back(newOrder);  
+                    }
                 }
+
             }else { // when a courier arrives at an order
                 Courier* c = nextOrderBeingServed->assignedCourier;
                 // We choose a warehouse for the courier
@@ -378,6 +396,7 @@ void Environment::trainREINFORCE(int timeLimit)
                 }
             }
         }
+        std::cout<<"----- Number of orders that arrived: " << orders.size() << " and served: " << nbOrdersServed << ". Mean wt: " << totalWaitingTime/nbOrdersServed <<" seconds. Highest wt: " << highestWaitingTimeOfAnOrder <<" seconds. -----" <<std::endl;
     }
    
     std::cout<<"----- REINFORCE training finished -----"<<std::endl;

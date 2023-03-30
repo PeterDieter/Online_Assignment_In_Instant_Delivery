@@ -17,7 +17,6 @@ Data::Data(std::string instanceName)
 {
 	rng = XorShift128(42);
 	nbClients = 0;
-	nbQuadrants = 0;
 	nbWarehouses = 0;
 	nbCouriers = 0;
 	nbPickers = 0;

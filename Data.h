@@ -17,7 +17,7 @@ struct Courier;
 struct Picker;
 struct Order;
 
-// Structure of a Client, including its index, position, and quadrant
+// Structure of a Client, including its index, position
 struct Client
 {
 	int clientID;				// IDex of the client
@@ -45,7 +45,7 @@ struct Order
 	int orderID;					// ID of the warehouse
 	Client* client; 				// pointer to couriers which are currently available at the warehouse
 	bool accepted;					// states if the order has been accepted or not
-	Warehouse* assignedWarehouse; 	// pointer to quadrants which are assigned to the warehouse
+	Warehouse* assignedWarehouse; 	// pointer to warehouse the order is assigned to
 	Courier* assignedCourier;		// Courier assigned to order
 	Picker* assignedPicker;			// Picker assigned to order
 	int orderTime;					// Time the order arrives in the system
@@ -79,7 +79,6 @@ struct Picker
 {
 	int pickerID;							// ID of the picker
 	int timeWhenAvailable;					// Gives the time when the picker is available again, i.e., completed all his tasks
-	std::vector< Order*> assignedToOrders;	// Vector of pointer to orders to which the picker is assigned to. Pickers can be assigned to multiple orders at the same time
 	Warehouse* assignedToWarehouse;			// Warehouse where the picker is located to
 };
 
@@ -89,7 +88,6 @@ public:
 	Data(std::string instanceName);
 	// Data of the problem instance
 	int nbClients;							// Number of clients
-	int nbQuadrants;						// Number of quadrants
 	int nbWarehouses;						// Number of warehouses
 	int nbCouriers;							// Total Number of couriers
 	int nbPickers;							// Total number of pickers
