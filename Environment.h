@@ -40,7 +40,6 @@ private:
 	int totalWaitingTime;
 	int highestWaitingTimeOfAnOrder;
 	int latestArrivalTime;
-	int objectiveValue; // Objective value that we try to minimize
 
 
 	// In this method we apply the nearest warehouse policy.
@@ -86,11 +85,14 @@ private:
 	// Function to draw an inter arrival time based on rate specified in data
 	int drawFromExponentialDistribution(double lambda);
 
+	// Function that returns the objective value (waiting time + penalty)
+	int getObjValue();
+
 	// Define a new Module.
 	struct neuralNetwork : torch::nn::Module {
 		neuralNetwork(int64_t inputSize, int64_t outputSize) {
-			fc1 = register_module("fc1", torch::nn::Linear(inputSize, 64));
-			fc2 = register_module("fc2", torch::nn::Linear(64, 32));
+			fc1 = register_module("fc1", torch::nn::Linear(inputSize, 32));
+			fc2 = register_module("fc2", torch::nn::Linear(32, 32));
 			fc3 = register_module("fc3", torch::nn::Linear(32, outputSize));
 		}
 
@@ -98,8 +100,8 @@ private:
 		torch::Tensor forward(torch::Tensor x) {
 			// Use one of many tensor manipulation functions.
 			x = torch::relu(fc1->forward(x.reshape({x.size(0), x.size(1)})));
-			x = torch::dropout(x, /*p=*/0.5, /*train=*/is_training());
-			x = torch::relu(fc2->forward(x));
+			//x = torch::dropout(x, /*p=*/0.5, /*train=*/is_training());
+			x = fc2->forward(x);
 			x = torch::softmax(fc3->forward(x), /*dim=*/1);
 			return x;
 		}
@@ -112,6 +114,10 @@ private:
 	void warehouseForOrderREINFORCE(Order* newOrder, neuralNetwork n);
 	// Function that returns the state as a tensor
 	torch::Tensor getState(Order* order);
+	// Function that returns the costs of each action
+	torch::Tensor getCostsVector();
+	int penalty;
+	torch::Tensor states;
 
 };
 

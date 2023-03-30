@@ -129,6 +129,7 @@ void Environment::chooseCourierForOrder(Order* newOrder)
 
 void Environment::chooseWarehouseForCourier(Courier* courier)
 {
+    // For now, we just assign the courier back to the warehouse he came from
     // draw service time needed to serve the client at the door
     courier->assignedToOrder->serviceTimeAtClient = drawFromExponentialDistribution(data->meanServiceTimeAtClient);   
     // Compute the time the courier is available again, i.e., can leave the warehouse that we just assigned him to
@@ -138,8 +139,6 @@ void Environment::chooseWarehouseForCourier(Courier* courier)
     // Increment the number of order that have been served
     nbOrdersServed ++;
     totalWaitingTime += courier->assignedToOrder->arrivalTime - courier->assignedToOrder->orderTime;
-    // We add the waiting time to the objective value.
-    objectiveValue += courier->assignedToOrder->arrivalTime - courier->assignedToOrder->orderTime; 
     if (highestWaitingTimeOfAnOrder < courier->assignedToOrder->arrivalTime - courier->assignedToOrder->orderTime)
     {
         highestWaitingTimeOfAnOrder = courier->assignedToOrder->arrivalTime - courier->assignedToOrder->orderTime;
@@ -299,7 +298,7 @@ void Environment::nearestWarehousePolicy(int timeLimit)
         }
     }
     std::cout<<"----- Simulation finished -----"<<std::endl;
-    std::cout<<"----- Number of orders that arrived in the system: " << orders.size() << " and served: " << nbOrdersServed << ". Mean waiting time: " << totalWaitingTime/nbOrdersServed <<" seconds. Highest waiting time: " << highestWaitingTimeOfAnOrder <<" seconds. -----" <<std::endl;
+    std::cout<<"----- Number of orders that arrived: " << orders.size() << " and served: " << nbOrdersServed << " Obj. value: " << getObjValue() << ". Mean wt: " << totalWaitingTime/nbOrdersServed <<" seconds. Highest wt: " << highestWaitingTimeOfAnOrder <<" seconds. -----" <<std::endl;
     writeRoutesAndOrdersToFile("data/animationData/routes.txt", "data/animationData/orders.txt");
 }
 
@@ -323,15 +322,42 @@ torch::Tensor Environment::getState(Order* order){
     return inputs;
 }
 
+int Environment::getObjValue(){
+    int objectiveValue = 0;
+    for (Order* order: orders){
+        if (order->accepted){
+            if (order->arrivalTime == -1){
+                objectiveValue += penalty;
+            }else{
+                objectiveValue += order->arrivalTime-order->orderTime;
+            }
+        }else{
+            objectiveValue += penalty;
+        }
+    } 
+    return objectiveValue;
+}
+
+
 void Environment::warehouseForOrderREINFORCE(Order* newOrder, neuralNetwork n)
 {
     torch::Tensor state = getState(newOrder);
+
+    if (newOrder->orderID == 0){
+        states = state;
+    }else{
+        states = torch::cat({states, state});
+    }
+
+
     torch::Tensor prediction = n.forward(state);
+    //std::cout<<prediction<<std::endl;
     // Prediction tensor to vector
     std::vector<float> predVector(prediction.data_ptr<float>(), prediction.data_ptr<float>() + prediction.numel());
     std::discrete_distribution<> discrete_dist(predVector.begin(), predVector.end());
     // Choose based on the distribution
     int indexWarehouse = discrete_dist(data->rng);
+    newOrder->actionProbability = predVector[indexWarehouse];
     // If the index is nb.warehouses, we reject the order
     if (indexWarehouse > data->nbWarehouses -1){
         newOrder->accepted = false;
@@ -343,6 +369,30 @@ void Environment::warehouseForOrderREINFORCE(Order* newOrder, neuralNetwork n)
     
 }
 
+torch::Tensor Environment::getCostsVector(){
+    std::vector<int> costsVec;
+    int orderCounter = 0;
+    for (Order* order: orders){
+        orderCounter ++;
+        if (order->accepted){
+            if (order->arrivalTime == -1){
+                costsVec.push_back(log(order->actionProbability)*(100/penalty));
+            }else{
+                costsVec.push_back(log(order->actionProbability)*(100/(order->arrivalTime-order->orderTime)));
+            }
+        }else{
+            costsVec.push_back(log(order->actionProbability)*(100/penalty));
+        }
+    }
+
+    // vector to tensor
+    auto options = torch::TensorOptions().dtype(at::kInt);
+    torch::Tensor costs = -1* torch::from_blob(costsVec.data(), {1, orderCounter}, options).clone().to(torch::kFloat);
+    costs = torch::sum(costs);
+    costs.requires_grad_(true);
+    return costs;
+}
+
 
 void Environment::trainREINFORCE(int timeLimit)
 {
@@ -351,8 +401,8 @@ void Environment::trainREINFORCE(int timeLimit)
     neuralNetwork net(data->nbWarehouses, data->nbWarehouses+1);
     // Instantiate an SGD optimization algorithm to update our Net's parameters.
     torch::optim::SGD optimizer(net.parameters(), /*lr=*/0.01);
-
-    for (int epoch = 0; epoch < 2; epoch++) {
+    penalty = 100;
+    for (int epoch = 0; epoch < 5000; epoch++) {
         std::cout<<"Iteration "<< epoch <<std::endl;
         // Reset gradients of neural network.
         optimizer.zero_grad();
@@ -396,7 +446,12 @@ void Environment::trainREINFORCE(int timeLimit)
                 }
             }
         }
-        std::cout<<"----- Number of orders that arrived: " << orders.size() << " and served: " << nbOrdersServed << ". Mean wt: " << totalWaitingTime/nbOrdersServed <<" seconds. Highest wt: " << highestWaitingTimeOfAnOrder <<" seconds. -----" <<std::endl;
+        std::cout<<"----- Number of orders that arrived: " << orders.size() << " and served: " << nbOrdersServed << " Obj. value: " << getObjValue() << ". Mean wt: " << totalWaitingTime/nbOrdersServed <<" seconds. Highest wt: " << highestWaitingTimeOfAnOrder <<" seconds. -----" <<std::endl;
+        torch::Tensor loss = getCostsVector();
+        loss.backward();
+        // Update the parameters based on the calculated gradients.
+        optimizer.step();
+    
     }
    
     std::cout<<"----- REINFORCE training finished -----"<<std::endl;

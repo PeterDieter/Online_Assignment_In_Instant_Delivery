@@ -52,6 +52,7 @@ struct Order
 	int timeToComission;			// Time it takes to comission the order
 	int serviceTimeAtClient;		// Time it takes to serve the client at the door
 	int arrivalTime;				// time the courier arrives at the client, i.e., the client is served
+	float actionProbability;		// Probability of the chosen action according to policy network (Only relevant for Policy Gradient methods!)
 };
 
 // Structure of a route. This is stored mainly for plotting purposes later on
