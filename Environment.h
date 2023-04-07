@@ -40,6 +40,7 @@ private:
 	int totalWaitingTime;
 	int highestWaitingTimeOfAnOrder;
 	int latestArrivalTime;
+	int penaltyForNotServing;
 
 
 	// In this method we apply the nearest warehouse policy.
@@ -91,18 +92,20 @@ private:
 	// Define a new Module.
 	struct neuralNetwork : torch::nn::Module {
 		neuralNetwork(int64_t inputSize, int64_t outputSize) {
-			fc1 = register_module("fc1", torch::nn::Linear(inputSize, 32));
-			fc2 = register_module("fc2", torch::nn::Linear(32, 32));
+			fc1 = register_module("fc1", torch::nn::Linear(inputSize, 64));
+			fc2 = register_module("fc2", torch::nn::Linear(64, 32));
 			fc3 = register_module("fc3", torch::nn::Linear(32, outputSize));
 		}
 
 		// Implement the Net's algorithm.
 		torch::Tensor forward(torch::Tensor x) {
 			// Use one of many tensor manipulation functions.
-			x = torch::relu(fc1->forward(x.reshape({x.size(0), x.size(1)})));
-			//x = torch::dropout(x, /*p=*/0.5, /*train=*/is_training());
-			x = fc2->forward(x);
-			x = torch::softmax(fc3->forward(x), /*dim=*/1);
+			x = torch::layer_norm(x, (x.size(1)));
+			x = torch::leaky_relu(fc1->forward(x));
+			x = torch::dropout(x, /*p=*/0.1, /*train=*/is_training());
+			x = torch::leaky_relu(fc2->forward(x));
+			x = fc3->forward(x);
+			x = torch::softmax(x, /*dim=*/1);
 			return x;
 		}
 
@@ -110,15 +113,28 @@ private:
 		torch::nn::Linear fc1{nullptr}, fc2{nullptr}, fc3{nullptr};
 	};
 
+
 	// Function that assigns order to a warehouse with the REINFORCE algorithm
-	void warehouseForOrderREINFORCE(Order* newOrder, neuralNetwork n);
+	void warehouseForOrderREINFORCE(Order* newOrder, neuralNetwork& n);
 	// Function that returns the state as a tensor
 	torch::Tensor getState(Order* order);
 	// Function that returns the costs of each action
-	torch::Tensor getCostsVector();
-	int penalty;
+	torch::Tensor getRewardVector();
 	torch::Tensor states;
+	torch::Tensor actions;
 
+};
+
+struct CustomLoss : public torch::nn::Module {
+public:
+    CustomLoss() {}
+
+    torch::Tensor forward(torch::Tensor probabilities, torch::Tensor rewards) {
+        // Calculate the custom loss function
+        torch::Tensor loss = (torch::mul(-torch::log(probabilities),rewards)).mean();
+		// loss.requires_grad_(true);
+        return loss;
+    }
 };
 
 #endif

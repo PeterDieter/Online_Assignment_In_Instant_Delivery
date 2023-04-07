@@ -259,47 +259,56 @@ void Environment::updateOrderBeingServedNext(){
 void Environment::nearestWarehousePolicy(int timeLimit)
 {
     std::cout<<"----- Simulation starts -----"<<std::endl;
-    // Initialize data structures
-    initialize();
-    
-    // Start with simulation
-    currentTime = 0;
-    timeCustomerArrives = 0;
-    timeNextCourierArrivesAtOrder = INT_MAX;
-    while (currentTime <= timeLimit || ordersAssignedToCourierButNotServed.size() > 0){
-        // Keep track of current time
-        currentTime = std::min(timeCustomerArrives, timeNextCourierArrivesAtOrder);
-        if (timeCustomerArrives < timeNextCourierArrivesAtOrder && currentTime <= timeLimit){
-            timeCustomerArrives += drawFromExponentialDistribution(data->interArrivalTime);
-            // Draw new order and assign it to warehouse, picker and courier. MUST BE IN THAT ORDER!!!
-            Order* newOrder = new Order;
-            initOrder(currentTime, newOrder);
-            orders.push_back(newOrder);
-            // We immediately assign the order to a warehouse and a picker
-            chooseWarehouseForOrder(newOrder);
-            choosePickerForOrder(newOrder);
-            // If there are couriers assigned to the warehouse, we can assign a courier to the order
-            if (newOrder->assignedWarehouse->couriersAssigned.size()>0){
-                chooseCourierForOrder(newOrder);
-                ordersAssignedToCourierButNotServed.push_back(newOrder);
-            }else{ // else we add the order to list of orders that have not been assigned to a courier yet
-                newOrder->assignedWarehouse->ordersNotAssignedToCourier.push_back(newOrder);    
-            }
-        }else { // when a courier arrives at an order
-            Courier* c = nextOrderBeingServed->assignedCourier;
-            // We choose a warehouse for the courier
-            chooseWarehouseForCourier(c);
-            // If the chosen warehouse has order that have not been assigned to a courier yet, we can now assign the order to a courier
-            if (c->assignedToWarehouse->ordersNotAssignedToCourier.size()>0){
-                Order* orderToAssignToCourier = c->assignedToWarehouse->ordersNotAssignedToCourier[0];
-                chooseCourierForOrder(orderToAssignToCourier);
-                ordersAssignedToCourierButNotServed.push_back(orderToAssignToCourier);
+    double running_loss = 0.0;
+    double counter1 = 0.0;
+    for (int epoch = 1; epoch < 1000; epoch++) {
+        // Initialize data structures
+        initialize();
+        
+        // Start with simulation
+        currentTime = 0;
+        timeCustomerArrives = 0;
+        timeNextCourierArrivesAtOrder = INT_MAX;
+        while (currentTime <= timeLimit || ordersAssignedToCourierButNotServed.size() > 0){
+            // Keep track of current time
+            currentTime = std::min(timeCustomerArrives, timeNextCourierArrivesAtOrder);
+            if (timeCustomerArrives < timeNextCourierArrivesAtOrder && currentTime <= timeLimit){
+                timeCustomerArrives += drawFromExponentialDistribution(data->interArrivalTime);
+                // Draw new order and assign it to warehouse, picker and courier. MUST BE IN THAT ORDER!!!
+                Order* newOrder = new Order;
+                initOrder(currentTime, newOrder);
+                orders.push_back(newOrder);
+                // We immediately assign the order to a warehouse and a picker
+                chooseWarehouseForOrder(newOrder);
+                choosePickerForOrder(newOrder);
+                // If there are couriers assigned to the warehouse, we can assign a courier to the order
+                if (newOrder->assignedWarehouse->couriersAssigned.size()>0){
+                    chooseCourierForOrder(newOrder);
+                    ordersAssignedToCourierButNotServed.push_back(newOrder);
+                }else{ // else we add the order to list of orders that have not been assigned to a courier yet
+                    newOrder->assignedWarehouse->ordersNotAssignedToCourier.push_back(newOrder);    
+                }
+            }else { // when a courier arrives at an order
+                if (nextOrderBeingServed){
+                    Courier* c = nextOrderBeingServed->assignedCourier;
+                    // We choose a warehouse for the courier
+                    chooseWarehouseForCourier(c);
+                    // If the chosen warehouse has order that have not been assigned to a courier yet, we can now assign the order to a courier
+                    if (c->assignedToWarehouse->ordersNotAssignedToCourier.size()>0){
+                        Order* orderToAssignToCourier = c->assignedToWarehouse->ordersNotAssignedToCourier[0];
+                        chooseCourierForOrder(orderToAssignToCourier);
+                        ordersAssignedToCourierButNotServed.push_back(orderToAssignToCourier);
+                    }
+                }
             }
         }
+        //std::cout<<"----- Simulation finished -----"<<std::endl;
+        //std::cout<<"----- Number of orders that arrived: " << orders.size() << " and served: " << nbOrdersServed << " Obj. value: " << getObjValue() << ". Mean wt: " << totalWaitingTime/nbOrdersServed <<" seconds. Highest wt: " << highestWaitingTimeOfAnOrder <<" seconds. -----" <<std::endl;
+        //writeRoutesAndOrdersToFile("data/animationData/routes.txt", "data/animationData/orders.txt");
+        running_loss += getObjValue();
+        counter1 += 1;
     }
-    std::cout<<"----- Simulation finished -----"<<std::endl;
-    std::cout<<"----- Number of orders that arrived: " << orders.size() << " and served: " << nbOrdersServed << " Obj. value: " << getObjValue() << ". Mean wt: " << totalWaitingTime/nbOrdersServed <<" seconds. Highest wt: " << highestWaitingTimeOfAnOrder <<" seconds. -----" <<std::endl;
-    writeRoutesAndOrdersToFile("data/animationData/routes.txt", "data/animationData/orders.txt");
+    std::cout << "Mean reward: " << running_loss / counter1 << std::endl;
 }
 
 void Environment::chooseWarehouseForOrder(Order* newOrder)
@@ -315,10 +324,25 @@ void Environment::chooseWarehouseForOrder(Order* newOrder)
 torch::Tensor Environment::getState(Order* order){
     // For now, the state is only the distances to the warehouses
     std::vector<int> distancesToWarehouses = data->travelTime.getRow(order->client->clientID);
-    // vector to tensor
-    auto options = torch::TensorOptions().dtype(at::kInt);
-    torch::Tensor inputs = torch::from_blob(distancesToWarehouses.data(), {1, data->nbWarehouses}, options).clone().to(torch::kFloat);
+    double maxElement = distancesToWarehouses[std::max_element(distancesToWarehouses.begin(), distancesToWarehouses.end())-distancesToWarehouses.begin()];
+    
+    std::vector<float> state;
+    for (int i = 0; i < distancesToWarehouses.size(); i++) {
+        state.push_back(distancesToWarehouses[i]/maxElement);
+    }
+    
+    std::vector<int> wareHouseLoad;
+    for (Warehouse* w : warehouses){
+        wareHouseLoad.push_back(w->couriersAssigned.size());
+    }
+    double maxElementW = wareHouseLoad[std::max_element(wareHouseLoad.begin(), wareHouseLoad.end())-wareHouseLoad.begin()];
+    for (int i = 0; i < wareHouseLoad.size(); i++) {
+        state.push_back(wareHouseLoad[i]/maxElementW);
+    }
 
+    // vector to tensor
+    auto options = torch::TensorOptions().dtype(at::kFloat);
+    torch::Tensor inputs = torch::from_blob(state.data(), {1, data->nbWarehouses*2}, options).clone().to(torch::kFloat);
     return inputs;
 }
 
@@ -327,37 +351,32 @@ int Environment::getObjValue(){
     for (Order* order: orders){
         if (order->accepted){
             if (order->arrivalTime == -1){
-                objectiveValue += penalty;
+                objectiveValue += penaltyForNotServing;
             }else{
-                objectiveValue += order->arrivalTime-order->orderTime;
+                if ((order->arrivalTime-order->orderTime) > 900){
+                    objectiveValue += 0;
+                }else{
+                    objectiveValue += 5;
+                }
+                 
             }
         }else{
-            objectiveValue += penalty;
+            objectiveValue += penaltyForNotServing;
         }
     } 
     return objectiveValue;
 }
 
 
-void Environment::warehouseForOrderREINFORCE(Order* newOrder, neuralNetwork n)
+void Environment::warehouseForOrderREINFORCE(Order* newOrder, neuralNetwork& n)
 {
     torch::Tensor state = getState(newOrder);
-
-    if (newOrder->orderID == 0){
-        states = state;
-    }else{
-        states = torch::cat({states, state});
-    }
-
-
     torch::Tensor prediction = n.forward(state);
-    //std::cout<<prediction<<std::endl;
     // Prediction tensor to vector
     std::vector<float> predVector(prediction.data_ptr<float>(), prediction.data_ptr<float>() + prediction.numel());
     std::discrete_distribution<> discrete_dist(predVector.begin(), predVector.end());
     // Choose based on the distribution
     int indexWarehouse = discrete_dist(data->rng);
-    newOrder->actionProbability = predVector[indexWarehouse];
     // If the index is nb.warehouses, we reject the order
     if (indexWarehouse > data->nbWarehouses -1){
         newOrder->accepted = false;
@@ -366,30 +385,42 @@ void Environment::warehouseForOrderREINFORCE(Order* newOrder, neuralNetwork n)
         newOrder->accepted = true;
     }
 
+    if (newOrder->orderID == 0){
+        states = state;
+        actions = torch::tensor({indexWarehouse});
+    }else{
+        states = torch::cat({states, state});
+        actions = torch::cat({actions, torch::tensor({indexWarehouse})});
+    }
+
     
 }
 
-torch::Tensor Environment::getCostsVector(){
-    std::vector<int> costsVec;
+torch::Tensor Environment::getRewardVector(){
+    std::vector<float> costsVec;
     int orderCounter = 0;
     for (Order* order: orders){
         orderCounter ++;
         if (order->accepted){
             if (order->arrivalTime == -1){
-                costsVec.push_back(log(order->actionProbability)*(100/penalty));
+                costsVec.push_back(penaltyForNotServing);
             }else{
-                costsVec.push_back(log(order->actionProbability)*(100/(order->arrivalTime-order->orderTime)));
+                float wt = order->arrivalTime-order->orderTime;
+                if (wt >900){
+                    costsVec.push_back(0);
+                }else{
+                    costsVec.push_back(5);
+                }
+                
             }
         }else{
-            costsVec.push_back(log(order->actionProbability)*(100/penalty));
+            costsVec.push_back(penaltyForNotServing);
         }
     }
 
     // vector to tensor
-    auto options = torch::TensorOptions().dtype(at::kInt);
-    torch::Tensor costs = -1* torch::from_blob(costsVec.data(), {1, orderCounter}, options).clone().to(torch::kFloat);
-    costs = torch::sum(costs);
-    costs.requires_grad_(true);
+    auto options = torch::TensorOptions().dtype(at::kFloat);
+    torch::Tensor costs = torch::from_blob(costsVec.data(), {1, orderCounter}, options).clone().to(torch::kFloat);
     return costs;
 }
 
@@ -398,14 +429,17 @@ void Environment::trainREINFORCE(int timeLimit)
 {
     std::cout<<"----- Training REINFORCE starts -----"<<std::endl;
     // Create neural network where each output node is assigned to a warehouse and one extra node for the reject decision
-    neuralNetwork net(data->nbWarehouses, data->nbWarehouses+1);
+    //neuralNetwork net(data->nbWarehouses*2, data->nbWarehouses+1);
+    auto net = std::make_shared<neuralNetwork>(data->nbWarehouses*2, data->nbWarehouses+1);
+    torch::Tensor loss, loss2;
+    // Create an instance of the custom loss function
+    CustomLoss loss_fn;
     // Instantiate an SGD optimization algorithm to update our Net's parameters.
-    torch::optim::SGD optimizer(net.parameters(), /*lr=*/0.01);
-    penalty = 100;
-    for (int epoch = 0; epoch < 5000; epoch++) {
-        std::cout<<"Iteration "<< epoch <<std::endl;
-        // Reset gradients of neural network.
-        optimizer.zero_grad();
+    torch::optim::Adam optimizer(net->parameters(), /*lr=*/0.001);
+    penaltyForNotServing = -5;
+    double running_loss = 0.0;
+    double counter1 = 0.0;
+    for (int epoch = 1; epoch <= 3000; epoch++) {
         // Initialize data structures
         initialize();
         // Start with simulation
@@ -422,7 +456,7 @@ void Environment::trainREINFORCE(int timeLimit)
                 initOrder(currentTime, newOrder);
                 orders.push_back(newOrder);
                 // We immediately assign the order to a warehouse and a picker
-                warehouseForOrderREINFORCE(newOrder, net);
+                warehouseForOrderREINFORCE(newOrder, *net);
                 if (newOrder->accepted){
                     choosePickerForOrder(newOrder);
                     // If there are couriers assigned to the warehouse, we can assign a courier to the order
@@ -435,22 +469,38 @@ void Environment::trainREINFORCE(int timeLimit)
                 }
 
             }else { // when a courier arrives at an order
-                Courier* c = nextOrderBeingServed->assignedCourier;
-                // We choose a warehouse for the courier
-                chooseWarehouseForCourier(c);
-                // If the chosen warehouse has order that have not been assigned to a courier yet, we can now assign the order to a courier
-                if (c->assignedToWarehouse->ordersNotAssignedToCourier.size()>0){
-                    Order* orderToAssignToCourier = c->assignedToWarehouse->ordersNotAssignedToCourier[0];
-                    chooseCourierForOrder(orderToAssignToCourier);
-                    ordersAssignedToCourierButNotServed.push_back(orderToAssignToCourier);
+                if (nextOrderBeingServed){
+                    Courier* c = nextOrderBeingServed->assignedCourier;
+                    // We choose a warehouse for the courier
+                    chooseWarehouseForCourier(c);
+                    // If the chosen warehouse has order that have not been assigned to a courier yet, we can now assign the order to a courier
+                    if (c->assignedToWarehouse->ordersNotAssignedToCourier.size()>0){
+                        Order* orderToAssignToCourier = c->assignedToWarehouse->ordersNotAssignedToCourier[0];
+                        chooseCourierForOrder(orderToAssignToCourier);
+                        ordersAssignedToCourierButNotServed.push_back(orderToAssignToCourier);
+                    }
                 }
             }
         }
-        std::cout<<"----- Number of orders that arrived: " << orders.size() << " and served: " << nbOrdersServed << " Obj. value: " << getObjValue() << ". Mean wt: " << totalWaitingTime/nbOrdersServed <<" seconds. Highest wt: " << highestWaitingTimeOfAnOrder <<" seconds. -----" <<std::endl;
-        torch::Tensor loss = getCostsVector();
+        //std::cout<<"----- Iteration: " << epoch << " Number of orders that arrived: " << orders.size() << " and served: " << nbOrdersServed << " Obj. value: " << getObjValue() << ". Mean wt: " << totalWaitingTime/nbOrdersServed <<" seconds. Highest wt: " << highestWaitingTimeOfAnOrder <<" seconds. -----" <<std::endl;
+        // Reset gradients of neural network.
+        torch::Tensor rewards = getRewardVector();
+        optimizer.zero_grad();
+        torch::Tensor pred = net->forward(states);
+        auto rows = torch::arange(0, pred.size(0), torch::kLong);
+        auto result = pred.index({rows, actions});
+        loss = loss_fn.forward(result, rewards);
         loss.backward();
-        // Update the parameters based on the calculated gradients.
-        optimizer.step();
+        running_loss += getObjValue();//loss.item<double>();
+        optimizer.step();       // Update the parameters based on the calculated gradients.
+        counter1 += 1;
+
+        // 
+        if (epoch % 100 == 0) {
+            std::cout << "[Iteration: " << epoch << "] reward: " << running_loss / counter1 << std::endl;
+            running_loss = 0.0;
+            counter1 = 0.0;
+        }
     
     }
    
