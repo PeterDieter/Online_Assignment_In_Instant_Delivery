@@ -328,7 +328,7 @@ torch::Tensor Environment::getState(Order* order){
     
     std::vector<float> state;
     for (int i = 0; i < distancesToWarehouses.size(); i++) {
-        state.push_back(distancesToWarehouses[i]/maxElement);
+        state.push_back(distancesToWarehouses[i]);
     }
     
     std::vector<int> wareHouseLoad;
@@ -337,7 +337,7 @@ torch::Tensor Environment::getState(Order* order){
     }
     double maxElementW = wareHouseLoad[std::max_element(wareHouseLoad.begin(), wareHouseLoad.end())-wareHouseLoad.begin()];
     for (int i = 0; i < wareHouseLoad.size(); i++) {
-        state.push_back(wareHouseLoad[i]/maxElementW);
+        state.push_back(wareHouseLoad[i]);
     }
 
     // vector to tensor
@@ -429,17 +429,16 @@ void Environment::trainREINFORCE(int timeLimit)
 {
     std::cout<<"----- Training REINFORCE starts -----"<<std::endl;
     // Create neural network where each output node is assigned to a warehouse and one extra node for the reject decision
-    //neuralNetwork net(data->nbWarehouses*2, data->nbWarehouses+1);
     auto net = std::make_shared<neuralNetwork>(data->nbWarehouses*2, data->nbWarehouses+1);
-    torch::Tensor loss, loss2;
+    torch::Tensor loss;
     // Create an instance of the custom loss function
     CustomLoss loss_fn;
-    // Instantiate an SGD optimization algorithm to update our Net's parameters.
-    torch::optim::Adam optimizer(net->parameters(), /*lr=*/0.001);
+    // Instantiate an Adam optimization algorithm to update our Net's parameters.
+    torch::optim::Adam optimizer(net->parameters(), /*lr=*/0.0001);
     penaltyForNotServing = -5;
     double running_loss = 0.0;
     double counter1 = 0.0;
-    for (int epoch = 1; epoch <= 3000; epoch++) {
+    for (int epoch = 1; epoch <= 30000; epoch++) {
         // Initialize data structures
         initialize();
         // Start with simulation
@@ -484,8 +483,8 @@ void Environment::trainREINFORCE(int timeLimit)
         }
         //std::cout<<"----- Iteration: " << epoch << " Number of orders that arrived: " << orders.size() << " and served: " << nbOrdersServed << " Obj. value: " << getObjValue() << ". Mean wt: " << totalWaitingTime/nbOrdersServed <<" seconds. Highest wt: " << highestWaitingTimeOfAnOrder <<" seconds. -----" <<std::endl;
         // Reset gradients of neural network.
-        torch::Tensor rewards = getRewardVector();
         optimizer.zero_grad();
+        torch::Tensor rewards = getRewardVector();
         torch::Tensor pred = net->forward(states);
         auto rows = torch::arange(0, pred.size(0), torch::kLong);
         auto result = pred.index({rows, actions});

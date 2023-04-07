@@ -92,25 +92,27 @@ private:
 	// Define a new Module.
 	struct neuralNetwork : torch::nn::Module {
 		neuralNetwork(int64_t inputSize, int64_t outputSize) {
-			fc1 = register_module("fc1", torch::nn::Linear(inputSize, 64));
-			fc2 = register_module("fc2", torch::nn::Linear(64, 32));
-			fc3 = register_module("fc3", torch::nn::Linear(32, outputSize));
+			fc1 = register_module("fc1", torch::nn::Linear(inputSize, 256));
+			fc2 = register_module("fc2", torch::nn::Linear(256, 128));
+			fc3 = register_module("fc3", torch::nn::Linear(128, 128));
+			fc4 = register_module("fc4", torch::nn::Linear(128, outputSize));
 		}
 
 		// Implement the Net's algorithm.
 		torch::Tensor forward(torch::Tensor x) {
 			// Use one of many tensor manipulation functions.
-			x = torch::layer_norm(x, (x.size(1)));
 			x = torch::leaky_relu(fc1->forward(x));
-			x = torch::dropout(x, /*p=*/0.1, /*train=*/is_training());
+			x = torch::layer_norm(x, (x.size(1)));
+			//x = torch::dropout(x, /*p=*/0.1, /*train=*/is_training());
 			x = torch::leaky_relu(fc2->forward(x));
-			x = fc3->forward(x);
+			x = torch::leaky_relu(fc3->forward(x));
+			x = fc4->forward(x);
 			x = torch::softmax(x, /*dim=*/1);
 			return x;
 		}
 
 		// Use one of many "standard library" modules.
-		torch::nn::Linear fc1{nullptr}, fc2{nullptr}, fc3{nullptr};
+		torch::nn::Linear fc1{nullptr}, fc2{nullptr}, fc3{nullptr}, fc4{nullptr};
 	};
 
 

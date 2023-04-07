@@ -20,11 +20,11 @@ def create_instance(fileName: str, limit: int=900, couriersPerWarehouse: int=5, 
     df = pd.read_csv("data/allDurations15.csv", header=0) 
     df = df.to_numpy()
     clients = df[:,:3]
-    matrix = df[:,10:].astype(int)
+    matrix = df[:,3:].astype(int)
 
     with open('data/getirStores.json') as fp:
         getirStores = json.load(fp)
-    warehouses = np.array([[val.get('longitude'),val.get('latitude')] for val in getirStores.values()])[7:]
+    warehouses = np.array([[val.get('longitude'),val.get('latitude')] for val in getirStores.values()])
     warehouses = np.c_[warehouses, np.ones(len(warehouses))*couriersPerWarehouse, np.ones(len(warehouses))*pickersPerWarehouse]
 
     # Remove clients where distance to warehouses is over limit
@@ -72,4 +72,4 @@ def create_instance(fileName: str, limit: int=900, couriersPerWarehouse: int=5, 
 
 
 if __name__ == "__main__":
-    create_instance(fileName = "instance_900_8_3_30_120_60", limit=900, couriersPerWarehouse=8, pickersPerWarehouse=3, interArrivalTime=300, meanComissionTime=120, meanServiceTimeAtClient=60)
+    create_instance(fileName = "instance_900_8_3_30_120_60", limit=900, couriersPerWarehouse=8, pickersPerWarehouse=3, interArrivalTime=30, meanComissionTime=120, meanServiceTimeAtClient=60)
