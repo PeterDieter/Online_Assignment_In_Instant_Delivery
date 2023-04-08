@@ -1,7 +1,7 @@
 import pandas as pd
 import numpy as np
 import json
-from matplotlib import pyplot as plt 
+import random
 
 def create_instance(fileName: str, limit: int=900, couriersPerWarehouse: int=5, pickersPerWarehouse: int=3, interArrivalTime: int=15, meanComissionTime: int=120, meanServiceTimeAtClient: int=60):
     """Create a .txt file of a problem instance
@@ -19,8 +19,12 @@ def create_instance(fileName: str, limit: int=900, couriersPerWarehouse: int=5, 
     
     df = pd.read_csv("data/allDurations15.csv", header=0) 
     df = df.to_numpy()
-    clients = df[:,:3]
-    matrix = df[:,3:].astype(int)
+    random.seed(42)
+    rndIdxs = random.sample(range(len(df)), round(len(df)*0.75))
+    clients = df[rndIdxs,:3]
+    matrix = df[rndIdxs,3:].astype(int)
+    # clients = np.delete(clients, rndIdxs, axis=0)
+    # matrix = np.delete(matrix, rndIdxs, axis=0)
 
     with open('data/getirStores.json') as fp:
         getirStores = json.load(fp)
@@ -72,4 +76,4 @@ def create_instance(fileName: str, limit: int=900, couriersPerWarehouse: int=5, 
 
 
 if __name__ == "__main__":
-    create_instance(fileName = "instance_900_8_3_30_120_60", limit=900, couriersPerWarehouse=8, pickersPerWarehouse=3, interArrivalTime=30, meanComissionTime=120, meanServiceTimeAtClient=60)
+    create_instance(fileName = "instance_900_8_3_30_120_60_train", limit=900, couriersPerWarehouse=5, pickersPerWarehouse=3, interArrivalTime=30, meanComissionTime=120, meanServiceTimeAtClient=60)

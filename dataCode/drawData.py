@@ -5,7 +5,7 @@ import json
 
 
 def plotData(clients, warehouses):
-    df = pd.DataFrame(clients, columns =['Latitude', 'Longitude', 'PackageVolume', 'Date'])
+    df = pd.DataFrame(clients, columns =['Idx','Latitude', 'Longitude'])
     fig = go.Figure(go.Scattermapbox(lat=df.Latitude, lon=df.Longitude))
 
     fig.add_trace(go.Scattermapbox(
@@ -28,6 +28,6 @@ if __name__ == "__main__":
     with open('data/getirStores.json') as fp:
         getirStores = json.load(fp)
 
-    Stopls = pd.read_csv("data/stopData_Chicago.csv", header=None, names=['Latitude', 'Longitude', 'PackageVolume', 'Date']) 
+    Stopls = pd.read_csv("data/stopData15Minutes.csv", header=None, names=['Idx','Latitude', 'Longitude']) 
 
     plotData(Stopls, getirStores)

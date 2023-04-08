@@ -11,6 +11,7 @@
 #include <random>
 
 #include <torch/torch.h>
+#include <torch/script.h>
 #include "Matrix.h"
 #include "Data.h"
 #include "Environment.h"
@@ -41,12 +42,13 @@ private:
 	int highestWaitingTimeOfAnOrder;
 	int latestArrivalTime;
 	int penaltyForNotServing;
-
+	
 
 	// In this method we apply the nearest warehouse policy.
 	void nearestWarehousePolicy(int timelimit);
-	// In this method we train a REINFORCE algorithm
+	// In these methods we train and test a REINFORCE algorithm
 	void trainREINFORCE(int timelimit);
+	void testREINFORCE(int timeLimit);
 
 	// In this method we initialize the rest of the Data, such as warehouses, couriers, etc.
 	void initialize();
@@ -92,9 +94,9 @@ private:
 	// Define a new Module.
 	struct neuralNetwork : torch::nn::Module {
 		neuralNetwork(int64_t inputSize, int64_t outputSize) {
-			fc1 = register_module("fc1", torch::nn::Linear(inputSize, 256));
-			fc2 = register_module("fc2", torch::nn::Linear(256, 128));
-			fc3 = register_module("fc3", torch::nn::Linear(128, 128));
+			fc1 = register_module("fc1", torch::nn::Linear(inputSize, 512));
+			fc2 = register_module("fc2", torch::nn::Linear(512, 256));
+			fc3 = register_module("fc3", torch::nn::Linear(256, 128));
 			fc4 = register_module("fc4", torch::nn::Linear(128, outputSize));
 		}
 
@@ -103,8 +105,9 @@ private:
 			// Use one of many tensor manipulation functions.
 			x = torch::leaky_relu(fc1->forward(x));
 			x = torch::layer_norm(x, (x.size(1)));
-			//x = torch::dropout(x, /*p=*/0.1, /*train=*/is_training());
+			x = torch::dropout(x, /*p=*/0.15, /*train=*/is_training());
 			x = torch::leaky_relu(fc2->forward(x));
+			x = torch::dropout(x, /*p=*/0.15, /*train=*/is_training());
 			x = torch::leaky_relu(fc3->forward(x));
 			x = fc4->forward(x);
 			x = torch::softmax(x, /*dim=*/1);
@@ -117,7 +120,8 @@ private:
 
 
 	// Function that assigns order to a warehouse with the REINFORCE algorithm
-	void warehouseForOrderREINFORCE(Order* newOrder, neuralNetwork& n);
+	void warehouseForOrderREINFORCE(Order* newOrder, neuralNetwork& n, bool train);
+
 	// Function that returns the state as a tensor
 	torch::Tensor getState(Order* order);
 	// Function that returns the costs of each action

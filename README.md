@@ -14,18 +14,19 @@ make
 You can then execute the code with:
 
 ```
-./onlineAssignment instanceName policyName
+./onlineAssignment instanceName methodName
 ```
 
-where **instanceName** gives the path to the .txt file containing the instance information and **policyName** is a string that determines the policy which will be applied/trained. For example:
+where **instanceName** gives the path to the .txt file containing the instance information and **methodName** is a string that determines the method which will be applied/trained. For example:
 
 ```
-./onlineAssignment instances/instances_900_8_3_30_120_60.txt nearestWarehouse
+./onlineAssignment instances/instances_900_8_3_30_120_60_test.txt nearestWarehouse
 ```
 
-Currently, the following policies are available:
+Currently, the following methods are available:
 1. nearestWarehouse: In this policy, the nearest warehouse is selected for each order and each courier is also assigned back to his nearest warehouse. Each order is accepted.
-2. REINFORCE: In this policy, we train a neural network with the REINFORCE algorithm to assign orders to warehouses/ to reject orders.
+2. trainREINFORCE: In this method, we train a neural network with the REINFORCE algorithm to assign orders to warehouses/ to reject orders. The neural network gets saved as "net_REINFORCE.pt".
+3. testREINFORCE: We apply the policy net which was trained in the "trainREINFORCE" method.
 
 Visualization of the problem (made in [visualizeSimulation.py](dataCode/visualizeSimulation.py)):
 
