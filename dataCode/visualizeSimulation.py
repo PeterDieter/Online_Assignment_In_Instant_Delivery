@@ -60,7 +60,7 @@ def createAnimation(graph, hubs, routes, orders, save: bool):
         # Iterate until the end of the planning period, with steps to speed things up
         for t in range(0,routes["arrivalTime"].max(),18):
             counter += 1
-            show, step = 0, 0
+            show, step, served = 0, 0, 1
             if counterRoutes < len(routes):
                 routeType = "courier"
                 # If currentTime (t) is between start time and arrival time, show the courier on the map
@@ -72,6 +72,8 @@ def createAnimation(graph, hubs, routes, orders, save: bool):
             else:
                 routeType = "order"
                 idx = index - len(routes)
+                if orders.loc[idx,"served"] == 0:
+                    served = 0
                 # If current time is between the time the order arrives and the order is served, show the order
                 if orders.loc[idx,"orderTime"] < t and orders.loc[idx,"arrivalTime"] > t:
                     step = 0
@@ -80,10 +82,10 @@ def createAnimation(graph, hubs, routes, orders, save: bool):
             x = projected_graph.nodes[route[step]]['x']
             y = projected_graph.nodes[route[step]]['y']
             if show:
-                points.append([x, y, show, routeType])
+                points.append([x, y, show, routeType, served])
             else:
                 # Set x value to high value, so that the point wont be plotted on the grap
-                points.append([1000, y, show, routeType])
+                points.append([1000, y, show, routeType, served])
 
         final_route_coordinates.append(points)
         counterRoutes += 1 
@@ -95,7 +97,7 @@ def createAnimation(graph, hubs, routes, orders, save: bool):
     fig.subplots_adjust(left=0, bottom=0, right=1, top=1)
     # Add warehouses to the plot
     warehousePoints.to_crs('EPSG:3395', inplace=True)
-    warehousePoints.plot(ax=ax, color='red', label='warehouse', zorder = 3) # warehouses
+    warehousePoints.plot(ax=ax, color='red', label='warehouse', zorder = 4) # warehouses
 
     # Each list is a route. Length of this list = n_routes
     scatter_list = []
@@ -108,21 +110,32 @@ def createAnimation(graph, hubs, routes, orders, save: bool):
                                         s = 16,
                                         label="courier",
                                         color="blue",
-                                        zorder = 2))
+                                        zorder = 3))
         else:
-            scatter_list.append(ax.scatter(final_route_coordinates[j][0][0], # x coordiante of the first node of the j route
-                                final_route_coordinates[j][0][1], # y coordiante of the first node of the j route
-                                alpha=1,
-                                s = 16,
-                                color="green",
-                                label="order",
-                                zorder = 1))
+            if (final_route_coordinates[j][0][4] == 1):
+                scatter_list.append(ax.scatter(final_route_coordinates[j][0][0], # x coordiante of the first node of the j route
+                                    final_route_coordinates[j][0][1], # y coordiante of the first node of the j route
+                                    alpha=1,
+                                    s = 16,
+                                    color="green",
+                                    label="orderServed",
+                                    zorder = 2))
+            else:
+                scatter_list.append(ax.scatter(final_route_coordinates[j][0][0], # x coordiante of the first node of the j route
+                    final_route_coordinates[j][0][1], # y coordiante of the first node of the j route
+                    alpha=1,
+                    s = 16,
+                    color="black",
+                    label="orderNotServed",
+                    zorder = 1))
+
 
     # Plot the legend
     red_patch = plt.Line2D([], [], color="red", marker="o", linewidth=0, label ="Warehouse")
     blue_patch = plt.Line2D([], [], color="blue", marker="o", linewidth=0, label ="Courier")
-    green_patch = plt.Line2D([], [], color="green", marker="o", linewidth=0, label ="Order")
-    ax.legend(loc=3,handles=[red_patch, blue_patch, green_patch])
+    green_patch = plt.Line2D([], [], color="green", marker="o", linewidth=0, label ="Served Order")
+    black_patch = plt.Line2D([], [], color="black", marker="o", linewidth=0, label ="Rejected Order")
+    ax.legend(loc=3,handles=[red_patch, blue_patch, green_patch, black_patch])
         
     def animate(i):
         """Animate scatter plot (courier movement and order pop ups)
@@ -142,15 +155,24 @@ def createAnimation(graph, hubs, routes, orders, save: bool):
                     x_j = final_route_coordinates[j][i][0]
                     y_j = final_route_coordinates[j][i][1]
                     scatter_list[j].set_offsets(np.c_[x_j, y_j])
-                    scatter_list[j].set_zorder(2)
+                    scatter_list[j].set_zorder(3)
                     scatter_list[j].set_color("blue")
                 else:
-                    # Try to plot a scatter plot
-                    x_j = final_route_coordinates[j][i][0]
-                    y_j = final_route_coordinates[j][i][1]
-                    scatter_list[j].set_offsets(np.c_[x_j, y_j])
-                    scatter_list[j].set_zorder(1)
-                    scatter_list[j].set_color("green")
+                    if (final_route_coordinates[j][0][4] == 1):
+                        # Try to plot a scatter plot
+                        x_j = final_route_coordinates[j][i][0]
+                        y_j = final_route_coordinates[j][i][1]
+                        scatter_list[j].set_offsets(np.c_[x_j, y_j])
+                        scatter_list[j].set_zorder(2)
+                        scatter_list[j].set_color("green")
+                    else:
+                        # Try to plot a scatter plot
+                        x_j = final_route_coordinates[j][i][0]
+                        y_j = final_route_coordinates[j][i][1]
+                        scatter_list[j].set_offsets(np.c_[x_j, y_j])
+                        scatter_list[j].set_zorder(1)
+                        scatter_list[j].set_color("black")
+
 
             except:
                 # If i became > len(current_route) then continue to the next route
@@ -161,7 +183,7 @@ def createAnimation(graph, hubs, routes, orders, save: bool):
     animation = ani.FuncAnimation(fig, animate, frames=counter)
     if save:
         writergif = ani.PillowWriter(fps=10) 
-        animation.save("animation.gif", writer=writergif, dpi=200, savefig_kwargs={"transparent": True, "facecolor": "none"})
+        animation.save("animation_REINFORCE.gif", writer=writergif, dpi=200, savefig_kwargs={"transparent": True, "facecolor": "none"})
     plt.show()
 
 
@@ -177,10 +199,10 @@ if __name__ == "__main__":
     graph = ox.load_graphml("data/animationData/chicago.graphml")
 
 
-    routes = pd.read_csv('data/animationData/routes.txt', sep=" ", header=None)
+    routes = pd.read_csv('data/animationData/routes_REINFORCE.txt', sep=" ", header=None)
     routes.columns = ["startTime", "arrivalTime", "fLat", "fLon", "tLat", "tLon"]
 
-    orders = pd.read_csv('data/animationData/orders.txt', sep=" ", header=None)
-    orders.columns = ["orderTime", "arrivalTime", "Lat", "Lon"]
+    orders = pd.read_csv('data/animationData/orders_REINFORCE.txt', sep=" ", header=None)
+    orders.columns = ["orderTime", "arrivalTime", "Lat", "Lon", "served"]
 
-    createAnimation(graph, getirStores, routes, orders, save = False)
+    createAnimation(graph, getirStores, routes, orders, save = True)

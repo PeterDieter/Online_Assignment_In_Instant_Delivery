@@ -123,86 +123,86 @@ onlineAssignment/fast:
 	$(MAKE) -f CMakeFiles/onlineAssignment.dir/build.make CMakeFiles/onlineAssignment.dir/build
 .PHONY : onlineAssignment/fast
 
-Data.o: Data.cpp.o
+src/Data.o: src/Data.cpp.o
 
-.PHONY : Data.o
-
-# target to build an object file
-Data.cpp.o:
-	$(MAKE) -f CMakeFiles/onlineAssignment.dir/build.make CMakeFiles/onlineAssignment.dir/Data.cpp.o
-.PHONY : Data.cpp.o
-
-Data.i: Data.cpp.i
-
-.PHONY : Data.i
-
-# target to preprocess a source file
-Data.cpp.i:
-	$(MAKE) -f CMakeFiles/onlineAssignment.dir/build.make CMakeFiles/onlineAssignment.dir/Data.cpp.i
-.PHONY : Data.cpp.i
-
-Data.s: Data.cpp.s
-
-.PHONY : Data.s
-
-# target to generate assembly for a file
-Data.cpp.s:
-	$(MAKE) -f CMakeFiles/onlineAssignment.dir/build.make CMakeFiles/onlineAssignment.dir/Data.cpp.s
-.PHONY : Data.cpp.s
-
-Environment.o: Environment.cpp.o
-
-.PHONY : Environment.o
+.PHONY : src/Data.o
 
 # target to build an object file
-Environment.cpp.o:
-	$(MAKE) -f CMakeFiles/onlineAssignment.dir/build.make CMakeFiles/onlineAssignment.dir/Environment.cpp.o
-.PHONY : Environment.cpp.o
+src/Data.cpp.o:
+	$(MAKE) -f CMakeFiles/onlineAssignment.dir/build.make CMakeFiles/onlineAssignment.dir/src/Data.cpp.o
+.PHONY : src/Data.cpp.o
 
-Environment.i: Environment.cpp.i
+src/Data.i: src/Data.cpp.i
 
-.PHONY : Environment.i
+.PHONY : src/Data.i
 
 # target to preprocess a source file
-Environment.cpp.i:
-	$(MAKE) -f CMakeFiles/onlineAssignment.dir/build.make CMakeFiles/onlineAssignment.dir/Environment.cpp.i
-.PHONY : Environment.cpp.i
+src/Data.cpp.i:
+	$(MAKE) -f CMakeFiles/onlineAssignment.dir/build.make CMakeFiles/onlineAssignment.dir/src/Data.cpp.i
+.PHONY : src/Data.cpp.i
 
-Environment.s: Environment.cpp.s
+src/Data.s: src/Data.cpp.s
 
-.PHONY : Environment.s
+.PHONY : src/Data.s
 
 # target to generate assembly for a file
-Environment.cpp.s:
-	$(MAKE) -f CMakeFiles/onlineAssignment.dir/build.make CMakeFiles/onlineAssignment.dir/Environment.cpp.s
-.PHONY : Environment.cpp.s
+src/Data.cpp.s:
+	$(MAKE) -f CMakeFiles/onlineAssignment.dir/build.make CMakeFiles/onlineAssignment.dir/src/Data.cpp.s
+.PHONY : src/Data.cpp.s
 
-main.o: main.cpp.o
+src/Environment.o: src/Environment.cpp.o
 
-.PHONY : main.o
+.PHONY : src/Environment.o
 
 # target to build an object file
-main.cpp.o:
-	$(MAKE) -f CMakeFiles/onlineAssignment.dir/build.make CMakeFiles/onlineAssignment.dir/main.cpp.o
-.PHONY : main.cpp.o
+src/Environment.cpp.o:
+	$(MAKE) -f CMakeFiles/onlineAssignment.dir/build.make CMakeFiles/onlineAssignment.dir/src/Environment.cpp.o
+.PHONY : src/Environment.cpp.o
 
-main.i: main.cpp.i
+src/Environment.i: src/Environment.cpp.i
 
-.PHONY : main.i
+.PHONY : src/Environment.i
 
 # target to preprocess a source file
-main.cpp.i:
-	$(MAKE) -f CMakeFiles/onlineAssignment.dir/build.make CMakeFiles/onlineAssignment.dir/main.cpp.i
-.PHONY : main.cpp.i
+src/Environment.cpp.i:
+	$(MAKE) -f CMakeFiles/onlineAssignment.dir/build.make CMakeFiles/onlineAssignment.dir/src/Environment.cpp.i
+.PHONY : src/Environment.cpp.i
 
-main.s: main.cpp.s
+src/Environment.s: src/Environment.cpp.s
 
-.PHONY : main.s
+.PHONY : src/Environment.s
 
 # target to generate assembly for a file
-main.cpp.s:
-	$(MAKE) -f CMakeFiles/onlineAssignment.dir/build.make CMakeFiles/onlineAssignment.dir/main.cpp.s
-.PHONY : main.cpp.s
+src/Environment.cpp.s:
+	$(MAKE) -f CMakeFiles/onlineAssignment.dir/build.make CMakeFiles/onlineAssignment.dir/src/Environment.cpp.s
+.PHONY : src/Environment.cpp.s
+
+src/main.o: src/main.cpp.o
+
+.PHONY : src/main.o
+
+# target to build an object file
+src/main.cpp.o:
+	$(MAKE) -f CMakeFiles/onlineAssignment.dir/build.make CMakeFiles/onlineAssignment.dir/src/main.cpp.o
+.PHONY : src/main.cpp.o
+
+src/main.i: src/main.cpp.i
+
+.PHONY : src/main.i
+
+# target to preprocess a source file
+src/main.cpp.i:
+	$(MAKE) -f CMakeFiles/onlineAssignment.dir/build.make CMakeFiles/onlineAssignment.dir/src/main.cpp.i
+.PHONY : src/main.cpp.i
+
+src/main.s: src/main.cpp.s
+
+.PHONY : src/main.s
+
+# target to generate assembly for a file
+src/main.cpp.s:
+	$(MAKE) -f CMakeFiles/onlineAssignment.dir/build.make CMakeFiles/onlineAssignment.dir/src/main.cpp.s
+.PHONY : src/main.cpp.s
 
 # Help Target
 help:
@@ -213,15 +213,15 @@ help:
 	@echo "... rebuild_cache"
 	@echo "... edit_cache"
 	@echo "... onlineAssignment"
-	@echo "... Data.o"
-	@echo "... Data.i"
-	@echo "... Data.s"
-	@echo "... Environment.o"
-	@echo "... Environment.i"
-	@echo "... Environment.s"
-	@echo "... main.o"
-	@echo "... main.i"
-	@echo "... main.s"
+	@echo "... src/Data.o"
+	@echo "... src/Data.i"
+	@echo "... src/Data.s"
+	@echo "... src/Environment.o"
+	@echo "... src/Environment.i"
+	@echo "... src/Environment.s"
+	@echo "... src/main.o"
+	@echo "... src/main.i"
+	@echo "... src/main.s"
 .PHONY : help
 
 
