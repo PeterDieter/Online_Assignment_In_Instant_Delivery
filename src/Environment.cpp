@@ -380,7 +380,7 @@ torch::Tensor Environment::getCostsVector(){
 void Environment::nearestWarehousePolicy(int timeLimit)
 {
     std::cout<<"----- Simulation starts -----"<<std::endl;
-    double running_loss = 0.0;
+    double running_costs = 0.0;
     double counter1 = 0.0;
     for (int epoch = 1; epoch <= 20; epoch++) {
         // Initialize data structures
@@ -426,10 +426,10 @@ void Environment::nearestWarehousePolicy(int timeLimit)
         //std::cout<<"----- Simulation finished -----"<<std::endl;
         std::cout<<"----- Number of orders that arrived: " << orders.size() << " and served: " << nbOrdersServed << " Obj. value: " << getObjValue() << ". Mean wt: " << totalWaitingTime/nbOrdersServed <<" seconds. Highest wt: " << highestWaitingTimeOfAnOrder <<" seconds. -----" <<std::endl;
         writeRoutesAndOrdersToFile("data/animationData/routes.txt", "data/animationData/orders.txt");
-        running_loss += getObjValue();
+        running_costs += getObjValue();
         counter1 += 1;
     }
-    std::cout<< "Iterations: " << counter1 <<" Average costs: " << running_loss / counter1 <<std::endl;
+    std::cout<< "Iterations: " << counter1 <<" Average costs: " << running_costs / counter1 <<std::endl;
 }
 
 
@@ -444,9 +444,9 @@ void Environment::trainREINFORCE(int timeLimit)
     // Instantiate an Adam optimization algorithm to update our Net's parameters.
     torch::optim::Adam optimizer(net->parameters(), /*lr=*/0.00002);
     penaltyForNotServing = 1500;
-    double running_loss = 0.0;
+    double running_costs = 0.0;
     double counter1 = 0.0;
-    for (int epoch = 1; epoch <= 4500; epoch++) {
+    for (int epoch = 1; epoch <= 4000; epoch++) {
         // Initialize data structures
         initialize();
         // Start with simulation
@@ -498,19 +498,19 @@ void Environment::trainREINFORCE(int timeLimit)
         auto result = pred.index({rows, actions});
         loss = loss_fn.forward(result, costs);
         loss.backward();
-        running_loss += getObjValue();//loss.item<double>();
+        running_costs += getObjValue();//loss.item<double>();
         optimizer.step();       // Update the parameters based on the calculated gradients.
         counter1 += 1;
 
         // 
         if (epoch % 100 == 0) {
-            std::cout << "[Iteration: " << epoch << "] Average cots: " << running_loss / counter1 << std::endl;
-            running_loss = 0.0;
+            std::cout << "[Iteration: " << epoch << "] Average costs: " << running_costs / counter1 << std::endl;
+            running_costs = 0.0;
             counter1 = 0.0;
         }
     
     }
-    torch::save(net,"net_REINFORCE.pt");
+    torch::save(net,"src/net_REINFORCE.pt");
     std::cout<<"----- REINFORCE training finished -----"<<std::endl;
 }
 
@@ -520,11 +520,11 @@ void Environment::testREINFORCE(int timeLimit)
     std::cout<<"----- Testing REINFORCE starts -----"<<std::endl;
     // Load neural network
     auto net = std::make_shared<neuralNetwork>(data->nbWarehouses*3, data->nbWarehouses+1);
-    torch::load(net, "net_REINFORCE.pt");
+    torch::load(net, "src/net_REINFORCE.pt");
     net->eval();
     
     penaltyForNotServing = 1000;
-    double running_loss = 0.0;
+    double running_costs = 0.0;
     double counter1 = 0.0;
     for (int epoch = 1; epoch <= 20; epoch++) {
         // Initialize data structures
@@ -571,10 +571,10 @@ void Environment::testREINFORCE(int timeLimit)
         }
         std::cout<<"----- Iteration: " << epoch << " Number of orders that arrived: " << orders.size() << " and served: " << nbOrdersServed << " Obj. value: " << getObjValue() << ". Mean wt: " << totalWaitingTime/nbOrdersServed <<" seconds. Highest wt: " << highestWaitingTimeOfAnOrder <<" seconds. -----" <<std::endl;
         writeRoutesAndOrdersToFile("data/animationData/routes_REINFORCE.txt", "data/animationData/orders_REINFORCE.txt");
-        running_loss += getObjValue();
+        running_costs += getObjValue();
         counter1 += 1;
     }
-    std::cout<< "Iterations: " << counter1 << " Average costs: " << running_loss / counter1 <<std::endl;
+    std::cout<< "Iterations: " << counter1 << " Average costs: " << running_costs / counter1 <<std::endl;
     
 }
 
