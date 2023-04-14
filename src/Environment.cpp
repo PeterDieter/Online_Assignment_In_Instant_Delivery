@@ -299,12 +299,7 @@ int Environment::getObjValue(){
             if (order->arrivalTime == -1){
                 objectiveValue += penaltyForNotServing;
             }else{
-                if ((order->arrivalTime-order->orderTime) > 900){
-                    objectiveValue += (order->arrivalTime-order->orderTime);
-                }else{
-                    objectiveValue += (order->arrivalTime-order->orderTime);
-                }
-                 
+                objectiveValue += (order->arrivalTime-order->orderTime); 
             }
         }else{
             objectiveValue += penaltyForNotServing;
@@ -314,7 +309,7 @@ int Environment::getObjValue(){
 }
 
 
-void Environment::warehouseForOrderREINFORCE(Order* newOrder, neuralNetwork& n, bool train)
+void Environment::warehouseForOrderREINFORCE(Order* newOrder, policyNetwork& n, bool train)
 {
     torch::Tensor state = getState(newOrder);
     torch::Tensor prediction = n.forward(state);
@@ -358,17 +353,39 @@ torch::Tensor Environment::getCostsVector(){
             if (order->arrivalTime == -1){
                 costsVec.push_back(penaltyForNotServing);
             }else{
-                float wt = order->arrivalTime-order->orderTime;
-                if (wt >900){
-                    costsVec.push_back((order->arrivalTime-order->orderTime));
-                }else{
-                    costsVec.push_back((order->arrivalTime-order->orderTime));
-                }
-                
+                costsVec.push_back((order->arrivalTime-order->orderTime));   
             }
         }else{
             costsVec.push_back(penaltyForNotServing);
         }
+    }
+
+    // vector to tensor
+    auto options = torch::TensorOptions().dtype(at::kFloat);
+    torch::Tensor costs = torch::from_blob(costsVec.data(), {1, orderCounter}, options).clone().to(torch::kFloat);
+    return costs;
+}
+
+torch::Tensor Environment::getCostsVectorDiscounted(float gamma){
+    std::vector<float> costsVec;
+    int orderCounter = 0;
+    double costsForOrder;
+    for (Order* order: orders){
+        orderCounter ++;
+        if (order->accepted){
+            costsForOrder = order->arrivalTime-order->orderTime;   
+        }else{
+            costsForOrder = penaltyForNotServing;
+        }
+        auto start_iter = std::next(orders.begin(), orderCounter);
+        for (auto orderAfter = start_iter; orderAfter != orders.end(); ++orderAfter){
+            if ((*orderAfter)->assignedWarehouse == order->assignedWarehouse){
+                if ((*orderAfter)->arrivalTime != -1){
+                    costsForOrder += ((*orderAfter)->arrivalTime-(*orderAfter)->orderTime)*pow(gamma, (*orderAfter)->orderTime-order->orderTime);
+                }
+            }
+        }
+        costsVec.push_back(costsForOrder);
     }
 
     // vector to tensor
@@ -382,7 +399,7 @@ void Environment::nearestWarehousePolicy(int timeLimit)
     std::cout<<"----- Simulation starts -----"<<std::endl;
     double running_costs = 0.0;
     double counter1 = 0.0;
-    for (int epoch = 1; epoch <= 20; epoch++) {
+    for (int epoch = 1; epoch <= 200; epoch++) {
         // Initialize data structures
         initialize();
         
@@ -424,7 +441,7 @@ void Environment::nearestWarehousePolicy(int timeLimit)
             }
         }
         //std::cout<<"----- Simulation finished -----"<<std::endl;
-        std::cout<<"----- Number of orders that arrived: " << orders.size() << " and served: " << nbOrdersServed << " Obj. value: " << getObjValue() << ". Mean wt: " << totalWaitingTime/nbOrdersServed <<" seconds. Highest wt: " << highestWaitingTimeOfAnOrder <<" seconds. -----" <<std::endl;
+        //std::cout<<"----- Number of orders that arrived: " << orders.size() << " and served: " << nbOrdersServed << " Obj. value: " << getObjValue() << ". Mean wt: " << totalWaitingTime/nbOrdersServed <<" seconds. Highest wt: " << highestWaitingTimeOfAnOrder <<" seconds. -----" <<std::endl;
         writeRoutesAndOrdersToFile("data/animationData/routes.txt", "data/animationData/orders.txt");
         running_costs += getObjValue();
         counter1 += 1;
@@ -437,16 +454,16 @@ void Environment::trainREINFORCE(int timeLimit)
 {
     std::cout<<"----- Training REINFORCE starts -----"<<std::endl;
     // Create neural network where each output node is assigned to a warehouse and one extra node for the reject decision
-    auto net = std::make_shared<neuralNetwork>(data->nbWarehouses*3, data->nbWarehouses+1);
+    auto net = std::make_shared<policyNetwork>(data->nbWarehouses*3, data->nbWarehouses+1);
     torch::Tensor loss;
     // Create an instance of the custom loss function
-    CustomLoss loss_fn;
+    logLoss loss_fn;
     // Instantiate an Adam optimization algorithm to update our Net's parameters.
-    torch::optim::Adam optimizer(net->parameters(), /*lr=*/0.00002);
+    torch::optim::Adam optimizer(net->parameters(), /*lr=*/0.00001);
     penaltyForNotServing = 1500;
     double running_costs = 0.0;
     double counter1 = 0.0;
-    for (int epoch = 1; epoch <= 4000; epoch++) {
+    for (int epoch = 1; epoch <= 8000; epoch++) {
         // Initialize data structures
         initialize();
         // Start with simulation
@@ -492,7 +509,7 @@ void Environment::trainREINFORCE(int timeLimit)
         //std::cout<<"----- Iteration: " << epoch << " Number of orders that arrived: " << orders.size() << " and served: " << nbOrdersServed << " Obj. value: " << getObjValue() << ". Mean wt: " << totalWaitingTime/nbOrdersServed <<" seconds. Highest wt: " << highestWaitingTimeOfAnOrder <<" seconds. -----" <<std::endl;
         // Reset gradients of neural network.
         optimizer.zero_grad();
-        torch::Tensor costs = getCostsVector();
+        torch::Tensor costs = getCostsVectorDiscounted(0.9);
         torch::Tensor pred = net->forward(states);
         auto rows = torch::arange(0, pred.size(0), torch::kLong);
         auto result = pred.index({rows, actions});
@@ -519,14 +536,14 @@ void Environment::testREINFORCE(int timeLimit)
 {
     std::cout<<"----- Testing REINFORCE starts -----"<<std::endl;
     // Load neural network
-    auto net = std::make_shared<neuralNetwork>(data->nbWarehouses*3, data->nbWarehouses+1);
+    auto net = std::make_shared<policyNetwork>(data->nbWarehouses*3, data->nbWarehouses+1);
     torch::load(net, "src/net_REINFORCE.pt");
     net->eval();
     
-    penaltyForNotServing = 1000;
+    penaltyForNotServing = 1500;
     double running_costs = 0.0;
     double counter1 = 0.0;
-    for (int epoch = 1; epoch <= 20; epoch++) {
+    for (int epoch = 1; epoch <= 1000; epoch++) {
         // Initialize data structures
         initialize();
         // Start with simulation
@@ -569,8 +586,8 @@ void Environment::testREINFORCE(int timeLimit)
                 }
             }
         }
-        std::cout<<"----- Iteration: " << epoch << " Number of orders that arrived: " << orders.size() << " and served: " << nbOrdersServed << " Obj. value: " << getObjValue() << ". Mean wt: " << totalWaitingTime/nbOrdersServed <<" seconds. Highest wt: " << highestWaitingTimeOfAnOrder <<" seconds. -----" <<std::endl;
-        writeRoutesAndOrdersToFile("data/animationData/routes_REINFORCE.txt", "data/animationData/orders_REINFORCE.txt");
+        //std::cout<<"----- Iteration: " << epoch << " Number of orders that arrived: " << orders.size() << " and served: " << nbOrdersServed << " Obj. value: " << getObjValue() << ". Mean wt: " << totalWaitingTime/nbOrdersServed <<" seconds. Highest wt: " << highestWaitingTimeOfAnOrder <<" seconds. -----" <<std::endl;
+        //writeRoutesAndOrdersToFile("data/animationData/routes_REINFORCE.txt", "data/animationData/orders_REINFORCE.txt");
         running_costs += getObjValue();
         counter1 += 1;
     }

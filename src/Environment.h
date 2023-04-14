@@ -16,6 +16,8 @@
 #include "Data.h"
 #include "Environment.h"
 
+struct policyNetwork;
+
 class Environment
 {
 public:
@@ -42,7 +44,8 @@ private:
 	int highestWaitingTimeOfAnOrder;
 	int latestArrivalTime;
 	int penaltyForNotServing;
-	
+	torch::Tensor states;
+	torch::Tensor actions;
 
 	// In this method we apply the nearest warehouse policy.
 	void nearestWarehousePolicy(int timelimit);
@@ -91,54 +94,50 @@ private:
 	// Function that returns the objective value (waiting time + penalty)
 	int getObjValue();
 
-	// Define a new Module.
-	struct neuralNetwork : torch::nn::Module {
-		neuralNetwork(int64_t inputSize, int64_t outputSize) {
-			fc1 = register_module("fc1", torch::nn::Linear(inputSize, 1024));
-			fc2 = register_module("fc2", torch::nn::Linear(1024, 512));
-			fc3 = register_module("fc3", torch::nn::Linear(512, 128));
-			fc4 = register_module("fc4", torch::nn::Linear(128, outputSize));
-		}
-
-		// Implement the Net's algorithm.
-		torch::Tensor forward(torch::Tensor x) {	
-			// Use one of many tensor manipulation functions.
-			x = torch::leaky_relu(fc1->forward(x));
-			x = torch::layer_norm(x, (x.size(1)));
-			x = torch::dropout(x, /*p=*/0.10, /*train=*/is_training());
-			x = torch::leaky_relu(fc2->forward(x));
-			x = torch::dropout(x, /*p=*/0.10, /*train=*/is_training());
-			x = torch::leaky_relu(fc3->forward(x));
-			x = fc4->forward(x);
-			x = torch::softmax(x, /*dim=*/1);
-			return x;
-		}
-
-		// Use one of many "standard library" modules.
-		torch::nn::Linear fc1{nullptr}, fc2{nullptr}, fc3{nullptr}, fc4{nullptr};
-	};
-
-
 	// Function that assigns order to a warehouse with the REINFORCE algorithm
-	void warehouseForOrderREINFORCE(Order* newOrder, neuralNetwork& n, bool train);
+	void warehouseForOrderREINFORCE(Order* newOrder, policyNetwork& n, bool train);
 
 	// Function that returns the state as a tensor
 	torch::Tensor getState(Order* order);
 	// Function that returns the costs of each action
 	torch::Tensor getCostsVector();
-	torch::Tensor states;
-	torch::Tensor actions;
-
+	torch::Tensor getCostsVectorDiscounted(float gamma);
 };
 
-struct CustomLoss : public torch::nn::Module {
+// Define a new Module.
+struct policyNetwork : torch::nn::Module {
+	policyNetwork(int64_t inputSize, int64_t outputSize) {
+		fc1 = register_module("fc1", torch::nn::Linear(inputSize, 1024));
+		fc2 = register_module("fc2", torch::nn::Linear(1024, 512));
+		fc3 = register_module("fc3", torch::nn::Linear(512, 128));
+		fc4 = register_module("fc4", torch::nn::Linear(128, outputSize));
+	}
+
+	// Implement the Net's algorithm.
+	torch::Tensor forward(torch::Tensor x) {	
+		// Use one of many tensor manipulation functions.
+		x = torch::leaky_relu(fc1->forward(x));
+		x = torch::layer_norm(x, (x.size(1)));
+		x = torch::dropout(x, /*p=*/0.10, /*train=*/is_training());
+		x = torch::leaky_relu(fc2->forward(x));
+		x = torch::dropout(x, /*p=*/0.10, /*train=*/is_training());
+		x = torch::leaky_relu(fc3->forward(x));
+		x = fc4->forward(x);
+		x = torch::softmax(x, /*dim=*/1);
+		return x;
+	}
+
+	// Use one of many "standard library" modules.
+	torch::nn::Linear fc1{nullptr}, fc2{nullptr}, fc3{nullptr}, fc4{nullptr};
+};
+
+struct logLoss : public torch::nn::Module {
 public:
-    CustomLoss() {}
+    logLoss() {}
 
     torch::Tensor forward(torch::Tensor probabilities, torch::Tensor rewards) {
-        // Calculate the custom loss function
+        // Calculate the log loss function
         torch::Tensor loss = (torch::mul(torch::log(probabilities),rewards)).mean();
-		// loss.requires_grad_(true);
         return loss;
     }
 };
