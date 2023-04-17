@@ -86,6 +86,7 @@ void Environment::initialize(int timeLimit)
         timesToComission.push_back(drawFromExponentialDistribution(data->meanCommissionTime));
         timesToServe.push_back(drawFromExponentialDistribution(data->meanServiceTimeAtClient));
     }
+    std::cout<<orderTimes.size()<<std::endl;
 }
 
 void Environment::initOrder(int currentTime, Order* o)
@@ -412,23 +413,30 @@ void Environment::nearestWarehousePolicy(int timeLimit)
 {
     std::cout<<"----- Simulation starts -----"<<std::endl;
     double running_costs = 0.0;
-    double counter1 = 0.0;
-    for (int epoch = 1; epoch <= 200; epoch++) {
+    double runningCounter = 0.0;
+    for (int epoch = 1; epoch <= 20; epoch++) {
         // Initialize data structures
         initialize(timeLimit);
         
         // Start with simulation
+        int counter = 0;
         currentTime = 0;
         timeCustomerArrives = 0;
         timeNextCourierArrivesAtOrder = INT_MAX;
-        while (currentTime <= timeLimit || ordersAssignedToCourierButNotServed.size() > 0){
+        while (currentTime < timeLimit || ordersAssignedToCourierButNotServed.size() > 0 && counter<orderTimes.size()-1){
+            // If we arrived at the last customer in the list, we need to set the time the nextcustomer arrives to the time limit such that we leave might leave the loop
+            if (counter == orderTimes.size()-1){
+                timeCustomerArrives = timeLimit;
+            }
             // Keep track of current time
             currentTime = std::min(timeCustomerArrives, timeNextCourierArrivesAtOrder);
-            if (timeCustomerArrives < timeNextCourierArrivesAtOrder && currentTime <= timeLimit){
-                timeCustomerArrives += drawFromExponentialDistribution(data->interArrivalTime);
+
+            if (timeCustomerArrives < timeNextCourierArrivesAtOrder && currentTime <= timeLimit && counter<orderTimes.size()-1){
+                timeCustomerArrives += orderTimes[counter];
+                counter += 1;
                 // Draw new order and assign it to warehouse, picker and courier. MUST BE IN THAT ORDER!!!
                 Order* newOrder = new Order;
-                initOrder(currentTime, newOrder);
+                initOrder(timeCustomerArrives, newOrder);
                 orders.push_back(newOrder);
                 // We immediately assign the order to a warehouse and a picker
                 chooseWarehouseForOrder(newOrder);
@@ -454,13 +462,13 @@ void Environment::nearestWarehousePolicy(int timeLimit)
                 }
             }
         }
-        //std::cout<<"----- Simulation finished -----"<<std::endl;
+        std::cout<<"----- Simulation finished -----"<<std::endl;
         //std::cout<<"----- Number of orders that arrived: " << orders.size() << " and served: " << nbOrdersServed << " Obj. value: " << getObjValue() << ". Mean wt: " << totalWaitingTime/nbOrdersServed <<" seconds. Highest wt: " << highestWaitingTimeOfAnOrder <<" seconds. -----" <<std::endl;
-        writeRoutesAndOrdersToFile("data/animationData/routes.txt", "data/animationData/orders.txt");
+        //writeRoutesAndOrdersToFile("data/animationData/routes.txt", "data/animationData/orders.txt");
         running_costs += getObjValue();
-        counter1 += 1;
+        runningCounter += 1;
     }
-    std::cout<< "Iterations: " << counter1 <<" Average costs: " << running_costs / counter1 <<std::endl;
+    std::cout<< "Iterations: " << runningCounter <<" Average costs: " << running_costs / runningCounter <<std::endl;
 }
 
 
@@ -476,22 +484,29 @@ void Environment::trainREINFORCE(int timeLimit)
     torch::optim::Adam optimizer(net->parameters(), /*lr=*/0.00001);
     penaltyForNotServing = 1500;
     double running_costs = 0.0;
-    double counter1 = 0.0;
+    double runningCounter = 0.0;
     for (int epoch = 1; epoch <= 8000; epoch++) {
         // Initialize data structures
         initialize(timeLimit);
         // Start with simulation
+        int counter = 0;
         currentTime = 0;
         timeCustomerArrives = 0;
         timeNextCourierArrivesAtOrder = INT_MAX;
-        while (currentTime <= timeLimit || ordersAssignedToCourierButNotServed.size() > 0){
+        while (currentTime < timeLimit || ordersAssignedToCourierButNotServed.size() > 0 && counter<orderTimes.size()-1){
+            // If we arrived at the last customer in the list, we need to set the time the nextcustomer arrives to the time limit such that we leave might leave the loop
+            if (counter == orderTimes.size()-1){
+                timeCustomerArrives = timeLimit;
+            }
             // Keep track of current time
             currentTime = std::min(timeCustomerArrives, timeNextCourierArrivesAtOrder);
-            if (timeCustomerArrives < timeNextCourierArrivesAtOrder && currentTime <= timeLimit){
-                timeCustomerArrives += drawFromExponentialDistribution(data->interArrivalTime);
+
+            if (timeCustomerArrives < timeNextCourierArrivesAtOrder && currentTime <= timeLimit && counter<orderTimes.size()-1){
+                timeCustomerArrives += orderTimes[counter];
+                counter += 1;
                 // Draw new order and assign it to warehouse, picker and courier. MUST BE IN THAT ORDER!!!
                 Order* newOrder = new Order;
-                initOrder(currentTime, newOrder);
+                initOrder(timeCustomerArrives, newOrder);
                 orders.push_back(newOrder);
                 // We immediately assign the order to a warehouse and a picker
                 warehouseForOrderREINFORCE(newOrder, *net, true);
@@ -531,13 +546,13 @@ void Environment::trainREINFORCE(int timeLimit)
         loss.backward();
         running_costs += getObjValue();//loss.item<double>();
         optimizer.step();       // Update the parameters based on the calculated gradients.
-        counter1 += 1;
+        runningCounter += 1;
 
         // 
         if (epoch % 100 == 0) {
-            std::cout << "[Iteration: " << epoch << "] Average costs: " << running_costs / counter1 << std::endl;
+            std::cout << "[Iteration: " << epoch << "] Average costs: " << running_costs / runningCounter << std::endl;
             running_costs = 0.0;
-            counter1 = 0.0;
+            runningCounter = 0.0;
         }
     
     }
@@ -556,8 +571,8 @@ void Environment::testREINFORCE(int timeLimit)
     
     penaltyForNotServing = 1500;
     double running_costs = 0.0;
-    double epochCounter = 0.0;
-    for (int epoch = 1; epoch <= 1000; epoch++) {
+    double runningCounter = 0.0;
+    for (int epoch = 1; epoch <= 20; epoch++) {
         // Initialize data structures
         initialize(timeLimit);
         // Start with simulation
@@ -610,9 +625,9 @@ void Environment::testREINFORCE(int timeLimit)
         //std::cout<<"----- Iteration: " << epoch << " Number of orders that arrived: " << orders.size() << " and served: " << nbOrdersServed << " Obj. value: " << getObjValue() << ". Mean wt: " << totalWaitingTime/nbOrdersServed <<" seconds. Highest wt: " << highestWaitingTimeOfAnOrder <<" seconds. -----" <<std::endl;
         //writeRoutesAndOrdersToFile("data/animationData/routes_REINFORCE.txt", "data/animationData/orders_REINFORCE.txt");
         running_costs += getObjValue();
-        epochCounter += 1;
+        runningCounter += 1;
     }
-    std::cout<< "Iterations: " << epochCounter << " Average costs: " << running_costs / epochCounter <<std::endl;
+    std::cout<< "Iterations: " << runningCounter << " Average costs: " << running_costs / runningCounter <<std::endl;
     
 }
 
