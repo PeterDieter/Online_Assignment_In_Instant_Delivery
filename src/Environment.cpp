@@ -21,7 +21,7 @@ Environment::Environment(Data* data) : data(data)
 }
 
 
-void Environment::initialize()
+void Environment::initialize(int timeLimit)
 {
     
     // CONSTRUCTOR: First we initialize the environment by assigning 
@@ -71,17 +71,31 @@ void Environment::initialize()
         }
     }
 
+    // Now we draw the random numbers
+    orderTimes = std::vector<int>(0);
+    clientsVector = std::vector<int>(0);
+    timesToComission = std::vector<int>(0);
+    timesToServe = std::vector<int>(0);
+    int currTime = 0;
+    int nextTime;
+    while (currTime < timeLimit){
+        nextTime = drawFromExponentialDistribution(data->interArrivalTime);
+        currTime += nextTime;
+        orderTimes.push_back(nextTime);
+        clientsVector.push_back(data->rng() % data->nbClients);
+        timesToComission.push_back(drawFromExponentialDistribution(data->meanCommissionTime));
+        timesToServe.push_back(drawFromExponentialDistribution(data->meanServiceTimeAtClient));
+    }
 }
 
 void Environment::initOrder(int currentTime, Order* o)
 {
     o->orderID = orders.size();
-    o->timeToComission = drawFromExponentialDistribution(data->meanCommissionTime); // Follows expoential distribution
+    o->timeToComission = timesToComission[o->orderID]; // Follows expoential distribution
     o->assignedCourier = nullptr;
     o->assignedPicker = nullptr;
     o->assignedWarehouse = nullptr;
-    int randomIDex = data->rng() % data->nbClients;
-    o->client = &data->paramClients[randomIDex];
+    o->client = &data->paramClients[clientsVector[o->orderID]];
     o->orderTime = currentTime;
     o->arrivalTime = -1;
 }
@@ -133,7 +147,7 @@ void Environment::chooseWarehouseForCourier(Courier* courier)
 {
     // For now, we just assign the courier back to the warehouse he came from
     // draw service time needed to serve the client at the door
-    courier->assignedToOrder->serviceTimeAtClient = drawFromExponentialDistribution(data->meanServiceTimeAtClient);   
+    courier->assignedToOrder->serviceTimeAtClient = timesToServe[courier->assignedToOrder->orderID];   
     // Compute the time the courier is available again, i.e., can leave the warehouse that we just assigned him to
     courier->timeWhenAvailable = nextOrderBeingServed->arrivalTime + courier->assignedToOrder->serviceTimeAtClient + data->travelTime.get(nextOrderBeingServed->client->clientID, courier->assignedToWarehouse->wareID);
     // Add the courier to the vector of assigned couriers at the respective warehouse
@@ -401,7 +415,7 @@ void Environment::nearestWarehousePolicy(int timeLimit)
     double counter1 = 0.0;
     for (int epoch = 1; epoch <= 200; epoch++) {
         // Initialize data structures
-        initialize();
+        initialize(timeLimit);
         
         // Start with simulation
         currentTime = 0;
@@ -465,7 +479,7 @@ void Environment::trainREINFORCE(int timeLimit)
     double counter1 = 0.0;
     for (int epoch = 1; epoch <= 8000; epoch++) {
         // Initialize data structures
-        initialize();
+        initialize(timeLimit);
         // Start with simulation
         currentTime = 0;
         timeCustomerArrives = 0;
@@ -542,22 +556,29 @@ void Environment::testREINFORCE(int timeLimit)
     
     penaltyForNotServing = 1500;
     double running_costs = 0.0;
-    double counter1 = 0.0;
+    double epochCounter = 0.0;
     for (int epoch = 1; epoch <= 1000; epoch++) {
         // Initialize data structures
-        initialize();
+        initialize(timeLimit);
         // Start with simulation
         currentTime = 0;
         timeCustomerArrives = 0;
+        int counter = 0;
         timeNextCourierArrivesAtOrder = INT_MAX;
-        while (currentTime <= timeLimit || ordersAssignedToCourierButNotServed.size() > 0){
+        while (currentTime < timeLimit || ordersAssignedToCourierButNotServed.size() > 0 && counter<orderTimes.size()-1){
+            // If we arrived at the last customer in the list, we need to set the time the nextcustomer arrives to the time limit such that we leave might leave the loop
+            if (counter == orderTimes.size()-1){
+                timeCustomerArrives = timeLimit;
+            }
             // Keep track of current time
             currentTime = std::min(timeCustomerArrives, timeNextCourierArrivesAtOrder);
-            if (timeCustomerArrives < timeNextCourierArrivesAtOrder && currentTime <= timeLimit){
-                timeCustomerArrives += drawFromExponentialDistribution(data->interArrivalTime);
+
+            if (timeCustomerArrives < timeNextCourierArrivesAtOrder && currentTime <= timeLimit && counter<orderTimes.size()-1){
+                timeCustomerArrives += orderTimes[counter];
+                counter += 1;
                 // Draw new order and assign it to warehouse, picker and courier. MUST BE IN THAT ORDER!!!
                 Order* newOrder = new Order;
-                initOrder(currentTime, newOrder);
+                initOrder(timeCustomerArrives, newOrder);
                 orders.push_back(newOrder);
                 // We immediately assign the order to a warehouse and a picker
                 warehouseForOrderREINFORCE(newOrder, *net, false);
@@ -589,9 +610,9 @@ void Environment::testREINFORCE(int timeLimit)
         //std::cout<<"----- Iteration: " << epoch << " Number of orders that arrived: " << orders.size() << " and served: " << nbOrdersServed << " Obj. value: " << getObjValue() << ". Mean wt: " << totalWaitingTime/nbOrdersServed <<" seconds. Highest wt: " << highestWaitingTimeOfAnOrder <<" seconds. -----" <<std::endl;
         //writeRoutesAndOrdersToFile("data/animationData/routes_REINFORCE.txt", "data/animationData/orders_REINFORCE.txt");
         running_costs += getObjValue();
-        counter1 += 1;
+        epochCounter += 1;
     }
-    std::cout<< "Iterations: " << counter1 << " Average costs: " << running_costs / counter1 <<std::endl;
+    std::cout<< "Iterations: " << epochCounter << " Average costs: " << running_costs / epochCounter <<std::endl;
     
 }
 

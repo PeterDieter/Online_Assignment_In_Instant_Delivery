@@ -36,6 +36,10 @@ private:
 	std::vector<Picker*> pickers;								// Vector of pointers  containing information on each picker
 	std::vector<Route*> routes;									// Vector of pointers  containing information on each route
 	Order* nextOrderBeingServed;								// Order that will be served next. Needed as we have two types of decision epoch: Order arriving and order being served (courier needs to be reassigned)
+	std::vector<int> orderTimes;								// Vector of times at which clients arrive. Will be created upon initialization
+	std::vector<int> clientsVector;								// Vector of clients that arrive. Same length as orderTimes vector. Will be created upon initialization
+	std::vector<int> timesToComission;							// Vector of times to comission. Same length as orderTimes vector. Will be created upon initialization
+	std::vector<int> timesToServe;								// Vector of times how long it takes to serve a client at his house. Same length as orderTimes vector. Will be created upon initialization
 	int currentTime;
 	int nbOrdersServed;
 	int timeCustomerArrives;
@@ -54,7 +58,7 @@ private:
 	void testREINFORCE(int timeLimit);
 
 	// In this method we initialize the rest of the Data, such as warehouses, couriers, etc.
-	void initialize();
+	void initialize(int timeLimit);
 
 	// Function to initialize the values of an order
 	void initOrder(int currentTime, Order* o);
