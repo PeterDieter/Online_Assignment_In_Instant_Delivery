@@ -1,4 +1,4 @@
-# Optimal Service Area Sizing for Ultra-Fast Delivery Services
+# Spatio-temporal Credit Assignment in Reinforcement Learning for Ultra-Fast Delivery Services
 
 Data is prepared in Python and an instance is then passed to C++. The raw and processed data is contained in folder [data](data). All code related to preprocessing data (including Isochrone API and DistanceMatrix API) and creating code to create instances is contained in [dataCode](dataCode).
 

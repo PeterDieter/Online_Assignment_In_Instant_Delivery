@@ -86,7 +86,6 @@ void Environment::initialize(int timeLimit)
         timesToComission.push_back(drawFromExponentialDistribution(data->meanCommissionTime));
         timesToServe.push_back(drawFromExponentialDistribution(data->meanServiceTimeAtClient));
     }
-    std::cout<<orderTimes.size()<<std::endl;
 }
 
 void Environment::initOrder(int currentTime, Order* o)
@@ -414,7 +413,7 @@ void Environment::nearestWarehousePolicy(int timeLimit)
     std::cout<<"----- Simulation starts -----"<<std::endl;
     double running_costs = 0.0;
     double runningCounter = 0.0;
-    for (int epoch = 1; epoch <= 20; epoch++) {
+    for (int epoch = 1; epoch <= 1000; epoch++) {
         // Initialize data structures
         initialize(timeLimit);
         
@@ -481,11 +480,11 @@ void Environment::trainREINFORCE(int timeLimit)
     // Create an instance of the custom loss function
     logLoss loss_fn;
     // Instantiate an Adam optimization algorithm to update our Net's parameters.
-    torch::optim::Adam optimizer(net->parameters(), /*lr=*/0.00001);
+    torch::optim::Adam optimizer(net->parameters(), /*lr=*/0.000008);
     penaltyForNotServing = 1500;
     double running_costs = 0.0;
     double runningCounter = 0.0;
-    for (int epoch = 1; epoch <= 8000; epoch++) {
+    for (int epoch = 1; epoch <= 10000; epoch++) {
         // Initialize data structures
         initialize(timeLimit);
         // Start with simulation
@@ -572,7 +571,7 @@ void Environment::testREINFORCE(int timeLimit)
     penaltyForNotServing = 1500;
     double running_costs = 0.0;
     double runningCounter = 0.0;
-    for (int epoch = 1; epoch <= 20; epoch++) {
+    for (int epoch = 1; epoch <= 1000; epoch++) {
         // Initialize data structures
         initialize(timeLimit);
         // Start with simulation
