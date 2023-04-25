@@ -23,10 +23,10 @@ def create_instance(fileName: str, limit: int=900, couriersPerWarehouse: int=5, 
     rndIdxs = random.sample(range(len(df)), round(len(df)*0.75))
     clients = df[rndIdxs,:3]
     matrix = df[rndIdxs,3:].astype(int)
-    # clients = df[:,:3]
-    # matrix = df[:,3:].astype(int)
-    # clients = np.delete(clients, rndIdxs, axis=0)
-    # matrix = np.delete(matrix, rndIdxs, axis=0)
+    clients = df[:,:3]
+    matrix = df[:,3:].astype(int)
+    clients = np.delete(clients, rndIdxs, axis=0)
+    matrix = np.delete(matrix, rndIdxs, axis=0)
 
     with open('data/getirStores.json') as fp:
         getirStores = json.load(fp)
@@ -78,4 +78,4 @@ def create_instance(fileName: str, limit: int=900, couriersPerWarehouse: int=5, 
 
 
 if __name__ == "__main__":
-    create_instance(fileName = "instance_900_8_3_30_120_60_train", limit=900, couriersPerWarehouse=4, pickersPerWarehouse=3, interArrivalTime=30, meanComissionTime=180, meanServiceTimeAtClient=60)
+    create_instance(fileName = "instance_900_8_3_30_120_60_test", limit=900, couriersPerWarehouse=5, pickersPerWarehouse=3, interArrivalTime=30, meanComissionTime=180, meanServiceTimeAtClient=60)

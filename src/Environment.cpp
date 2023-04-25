@@ -27,6 +27,7 @@ void Environment::initialize(int timeLimit)
     // CONSTRUCTOR: First we initialize the environment by assigning 
     int courierCounter = 0;
     int pickerCounter = 0;
+    penaltyForNotServing = 2500;
     totalWaitingTime = 0;
     highestWaitingTimeOfAnOrder = 0;
     latestArrivalTime = 0;
@@ -387,18 +388,19 @@ torch::Tensor Environment::getCostsVectorDiscounted(float gamma){
     for (Order* order: orders){
         orderCounter ++;
         if (order->accepted){
-            costsForOrder = order->arrivalTime-order->orderTime;   
+            costsForOrder = order->arrivalTime-order->orderTime;  
+            auto start_iter = std::next(orders.begin(), orderCounter);
+            for (auto orderAfter = start_iter; orderAfter != orders.end(); ++orderAfter){
+                if ((*orderAfter)->assignedWarehouse == order->assignedWarehouse){
+                    if ((*orderAfter)->arrivalTime != -1){
+                        costsForOrder += ((*orderAfter)->arrivalTime-(*orderAfter)->orderTime)*pow(gamma, (*orderAfter)->orderTime-order->orderTime);
+                    }
+                }
+            } 
         }else{
             costsForOrder = penaltyForNotServing;
         }
-        auto start_iter = std::next(orders.begin(), orderCounter);
-        for (auto orderAfter = start_iter; orderAfter != orders.end(); ++orderAfter){
-            if ((*orderAfter)->assignedWarehouse == order->assignedWarehouse){
-                if ((*orderAfter)->arrivalTime != -1){
-                    costsForOrder += ((*orderAfter)->arrivalTime-(*orderAfter)->orderTime)*pow(gamma, (*orderAfter)->orderTime-order->orderTime);
-                }
-            }
-        }
+        //std::cout<<"Costs: "<<costsForOrder<<" "<<order->arrivalTime<<" "<<order->orderTime<<std::endl;
         costsVec.push_back(costsForOrder);
     }
 
@@ -422,13 +424,13 @@ void Environment::nearestWarehousePolicy(int timeLimit)
         currentTime = 0;
         timeCustomerArrives = 0;
         timeNextCourierArrivesAtOrder = INT_MAX;
-        while (currentTime < timeLimit || ordersAssignedToCourierButNotServed.size() > 0 && counter<orderTimes.size()-1){
-            // If we arrived at the last customer in the list, we need to set the time the nextcustomer arrives to the time limit such that we leave might leave the loop
-            if (counter == orderTimes.size()-1){
-                timeCustomerArrives = timeLimit;
-            }
+        while (currentTime < timeLimit || ordersAssignedToCourierButNotServed.size() > 0){
             // Keep track of current time
-            currentTime = std::min(timeCustomerArrives, timeNextCourierArrivesAtOrder);
+            if (counter == orderTimes.size()-1){
+                currentTime = timeNextCourierArrivesAtOrder;
+            }else{
+                currentTime = std::min(timeCustomerArrives, timeNextCourierArrivesAtOrder);
+            }
 
             if (timeCustomerArrives < timeNextCourierArrivesAtOrder && currentTime <= timeLimit && counter<orderTimes.size()-1){
                 timeCustomerArrives += orderTimes[counter];
@@ -480,11 +482,10 @@ void Environment::trainREINFORCE(int timeLimit)
     // Create an instance of the custom loss function
     logLoss loss_fn;
     // Instantiate an Adam optimization algorithm to update our Net's parameters.
-    torch::optim::Adam optimizer(net->parameters(), /*lr=*/0.000008);
-    penaltyForNotServing = 1500;
+    torch::optim::Adam optimizer(net->parameters(), /*lr=*/0.00001);
     double running_costs = 0.0;
     double runningCounter = 0.0;
-    for (int epoch = 1; epoch <= 10000; epoch++) {
+    for (int epoch = 1; epoch <= 36000; epoch++) {
         // Initialize data structures
         initialize(timeLimit);
         // Start with simulation
@@ -492,14 +493,13 @@ void Environment::trainREINFORCE(int timeLimit)
         currentTime = 0;
         timeCustomerArrives = 0;
         timeNextCourierArrivesAtOrder = INT_MAX;
-        while (currentTime < timeLimit || ordersAssignedToCourierButNotServed.size() > 0 && counter<orderTimes.size()-1){
-            // If we arrived at the last customer in the list, we need to set the time the nextcustomer arrives to the time limit such that we leave might leave the loop
-            if (counter == orderTimes.size()-1){
-                timeCustomerArrives = timeLimit;
-            }
+        while (currentTime < timeLimit || ordersAssignedToCourierButNotServed.size() > 0){
             // Keep track of current time
-            currentTime = std::min(timeCustomerArrives, timeNextCourierArrivesAtOrder);
-
+            if (counter == orderTimes.size()-1){
+                currentTime = timeNextCourierArrivesAtOrder;
+            }else{
+                currentTime = std::min(timeCustomerArrives, timeNextCourierArrivesAtOrder);
+            }
             if (timeCustomerArrives < timeNextCourierArrivesAtOrder && currentTime <= timeLimit && counter<orderTimes.size()-1){
                 timeCustomerArrives += orderTimes[counter];
                 counter += 1;
@@ -537,7 +537,7 @@ void Environment::trainREINFORCE(int timeLimit)
         //std::cout<<"----- Iteration: " << epoch << " Number of orders that arrived: " << orders.size() << " and served: " << nbOrdersServed << " Obj. value: " << getObjValue() << ". Mean wt: " << totalWaitingTime/nbOrdersServed <<" seconds. Highest wt: " << highestWaitingTimeOfAnOrder <<" seconds. -----" <<std::endl;
         // Reset gradients of neural network.
         optimizer.zero_grad();
-        torch::Tensor costs = getCostsVectorDiscounted(0.9);
+        torch::Tensor costs = getCostsVectorDiscounted(0.999);
         torch::Tensor pred = net->forward(states);
         auto rows = torch::arange(0, pred.size(0), torch::kLong);
         auto result = pred.index({rows, actions});
@@ -555,8 +555,10 @@ void Environment::trainREINFORCE(int timeLimit)
         }
     
     }
-    torch::save(net,"src/net_REINFORCE.pt");
     std::cout<<"----- REINFORCE training finished -----"<<std::endl;
+    torch::save(net,"src/net_REINFORCE.pt");
+    std::cout<<"----- Policy net saved in src/net_REINFORCE.pt -----"<<std::endl;
+    
 }
 
 
@@ -568,7 +570,6 @@ void Environment::testREINFORCE(int timeLimit)
     torch::load(net, "src/net_REINFORCE.pt");
     net->eval();
     
-    penaltyForNotServing = 1500;
     double running_costs = 0.0;
     double runningCounter = 0.0;
     for (int epoch = 1; epoch <= 1000; epoch++) {
@@ -579,13 +580,13 @@ void Environment::testREINFORCE(int timeLimit)
         timeCustomerArrives = 0;
         int counter = 0;
         timeNextCourierArrivesAtOrder = INT_MAX;
-        while (currentTime < timeLimit || ordersAssignedToCourierButNotServed.size() > 0 && counter<orderTimes.size()-1){
-            // If we arrived at the last customer in the list, we need to set the time the nextcustomer arrives to the time limit such that we leave might leave the loop
-            if (counter == orderTimes.size()-1){
-                timeCustomerArrives = timeLimit;
-            }
+        while (currentTime < timeLimit || ordersAssignedToCourierButNotServed.size() > 0){
             // Keep track of current time
-            currentTime = std::min(timeCustomerArrives, timeNextCourierArrivesAtOrder);
+            if (counter == orderTimes.size()-1){
+                currentTime = timeNextCourierArrivesAtOrder;
+            }else{
+                currentTime = std::min(timeCustomerArrives, timeNextCourierArrivesAtOrder);
+            }
 
             if (timeCustomerArrives < timeNextCourierArrivesAtOrder && currentTime <= timeLimit && counter<orderTimes.size()-1){
                 timeCustomerArrives += orderTimes[counter];
