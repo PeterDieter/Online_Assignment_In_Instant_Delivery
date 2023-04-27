@@ -218,6 +218,22 @@ void Environment::writeRoutesAndOrdersToFile(std::string fileNameRoutes, std::st
 	else std::cout << "----- IMPOSSIBLE TO OPEN: " << fileNameOrders << std::endl;
 }
 
+void Environment::writeCostsToFile(std::vector<float> costs, float lambda){
+    std::string fileName = "data/trainingData/averageCosts" + std::to_string(lambda) + ".txt";
+	std::cout << "----- WRITING COST VECTOR IN : " << fileName << std::endl;
+	std::ofstream myfile(fileName);
+	if (myfile.is_open())
+	{
+		for (auto cost : costs)
+		{
+            // Here we print the order of customers that we visit 
+            myfile << cost;
+            myfile << std::endl;
+		}
+	}
+	else std::cout << "----- IMPOSSIBLE TO OPEN: " << fileName << std::endl;
+}
+
 
 void Environment::RemoveOrderFromVector(std::vector<Order*> & V, Order* orderToDelete) {
     V.erase(
@@ -473,9 +489,9 @@ void Environment::nearestWarehousePolicy(int timeLimit)
 }
 
 
-void Environment::trainREINFORCE(int timeLimit)
+void Environment::trainREINFORCE(int timeLimit, float lambda)
 {
-    std::cout<<"----- Training REINFORCE starts -----"<<std::endl;
+    std::cout<<"----- Training REINFORCE starts with lambda " << lambda << " -----"<<std::endl;
     // Create neural network where each output node is assigned to a warehouse and one extra node for the reject decision
     auto net = std::make_shared<policyNetwork>(data->nbWarehouses*3, data->nbWarehouses+1);
     torch::Tensor loss;
@@ -485,7 +501,8 @@ void Environment::trainREINFORCE(int timeLimit)
     torch::optim::Adam optimizer(net->parameters(), /*lr=*/0.00001);
     double running_costs = 0.0;
     double runningCounter = 0.0;
-    for (int epoch = 1; epoch <= 36000; epoch++) {
+    std::vector< float> averageCostVector;
+    for (int epoch = 1; epoch <= 50000; epoch++) {
         // Initialize data structures
         initialize(timeLimit);
         // Start with simulation
@@ -534,10 +551,9 @@ void Environment::trainREINFORCE(int timeLimit)
                 }
             }
         }
-        //std::cout<<"----- Iteration: " << epoch << " Number of orders that arrived: " << orders.size() << " and served: " << nbOrdersServed << " Obj. value: " << getObjValue() << ". Mean wt: " << totalWaitingTime/nbOrdersServed <<" seconds. Highest wt: " << highestWaitingTimeOfAnOrder <<" seconds. -----" <<std::endl;
         // Reset gradients of neural network.
         optimizer.zero_grad();
-        torch::Tensor costs = getCostsVectorDiscounted(0.999);
+        torch::Tensor costs = getCostsVectorDiscounted(lambda);
         torch::Tensor pred = net->forward(states);
         auto rows = torch::arange(0, pred.size(0), torch::kLong);
         auto result = pred.index({rows, actions});
@@ -550,12 +566,14 @@ void Environment::trainREINFORCE(int timeLimit)
         // 
         if (epoch % 100 == 0) {
             std::cout << "[Iteration: " << epoch << "] Average costs: " << running_costs / runningCounter << std::endl;
+            averageCostVector.push_back(running_costs/runningCounter);
             running_costs = 0.0;
             runningCounter = 0.0;
         }
     
     }
     std::cout<<"----- REINFORCE training finished -----"<<std::endl;
+    writeCostsToFile(averageCostVector, lambda);
     torch::save(net,"src/net_REINFORCE.pt");
     std::cout<<"----- Policy net saved in src/net_REINFORCE.pt -----"<<std::endl;
     
@@ -631,12 +649,12 @@ void Environment::testREINFORCE(int timeLimit)
     
 }
 
-void Environment::simulate(std::string policy, int timeLimit)
+void Environment::simulate(std::string policy, int timeLimit, float lambda)
 {
     if (policy == "nearestWarehouse"){
         nearestWarehousePolicy(timeLimit);
     }else if (policy == "trainREINFORCE"){
-        trainREINFORCE(timeLimit);
+        trainREINFORCE(timeLimit, lambda);
     }else if (policy == "testREINFORCE"){
         testREINFORCE(timeLimit);
     }else{

@@ -25,7 +25,7 @@ public:
 	Environment(Data* data);
 
 	// Function to perform a simulation
-	void simulate(std::string policy, int timeLimit);
+	void simulate(std::string policy, int timeLimit, float lambda);
 
 private:
 	Data* data;												// Problem parameters
@@ -54,7 +54,7 @@ private:
 	// In this method we apply the nearest warehouse policy.
 	void nearestWarehousePolicy(int timelimit);
 	// In these methods we train and test a REINFORCE algorithm
-	void trainREINFORCE(int timelimit);
+	void trainREINFORCE(int timelimit, float lambda);
 	void testREINFORCE(int timeLimit);
 
 	// In this method we initialize the rest of the Data, such as warehouses, couriers, etc.
@@ -89,8 +89,9 @@ private:
 	// Function that saves a route to the list of routes
 	void saveRoute(int startTime, int arrivalTime, double fromLat, double fromLon, double toLat, double toLon);
 
-	// Function that writes routes to file
+	// Functions that writes routes/orders and costs to file
 	void writeRoutesAndOrdersToFile(std::string fileNameRoutes, std::string fileNameOrders);
+	void writeCostsToFile(std::vector<float> costs, float lambda);
 
 	// Function to draw an inter arrival time based on rate specified in data
 	int drawFromExponentialDistribution(double lambda);
