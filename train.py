@@ -2,7 +2,7 @@ import subprocess
 
 
 lambdasTemporal = [0.99]
-lambdasSpatial = [0.6, 0.7, 0.8, 0.9]
+lambdasSpatial = [0.85]
 # for complex commands, with many args, use string + `shell=True`:
 for lamT in lambdasTemporal:
     for lamS in lambdasSpatial:

@@ -23,13 +23,14 @@ C(s_i, a_i) = w_i + \sum_{j>i \atop{W_i = W_j}} w_j \cdot \lambda_t^{t_j - t_i}
 \end{align}
 $$
 
-where $\lambda_t$ is a parameter that determines how much future costs weight and $t_j$ ($t_j$) is the time customer $i$ ($j$) arrives in the system. Therefore, costs of customers further in the future weigh less than costs of customers in the close future. If $\lambda_t = 0$, the equation reduces to equation $(1)$. This approach resembles quite a bit to the TD($\lambda_t$) method. The following graph shows the convergence for different values of $\lambda_t$.   
+where $\lambda_t$ is a parameter that determines how much future costs weight and $t_j$ ($t_j$) is the time customer $i$ ($j$) arrives in the system. Therefore, costs of customers further in the future weigh less than costs of customers in the close future. If $\lambda_t = 0$, the equation reduces to equation $(1)$. This approach resembles quite a bit to the TD($\lambda$) method. The following graph shows the convergence for different values of $\lambda_t$. Be ware that all results shown below are preliminary and at a very early stage. 
 
 <p style="text-align:center;">
-<img src="convergence.png" width="600" height="400" align="center"></p>
+<img src="convergenceTemporal.png" width="600" height="400" align="center"></p>
 
 We can see that a value of $\lambda_t = 0.99$ leads to the best results, and saves around 8% of costs compared to $\lambda_t = 0$. Further, we can see that the higher $\lambda_t$, the slower the convergence.
-What we now plan to do is to not only consider temporal vicinity, but also spatial vicinity, as future customers geographically close to customer $i$ should weigh more in the cost approximation of customer $i$, compared to customers further away. We plan to implement something like the following:
+
+What we now plan to do is to not only consider temporal vicinity, but also spatial vicinity, as future customers geographically close to customer $i$ should weigh more in the cost approximation of customer $i$, compared to customers further away. We implemented the following:
 
 $$
 \begin{align}
@@ -37,8 +38,10 @@ C(s_i, a_i) = w_i + \sum_{j>i} w_j \cdot \lambda_t^{t_j - t_i} \cdot \lambda_s^{
 \end{align}
 $$
 
-where $d_{ij}$ is the distance between warehouse of customer $i$ and $j$. 
+where $d_{ij}$ is the distance between warehouse of customer $i$ and $j$. Keeping $\lambda_t$ at  $0.99$, the following graph shows the convergence if we include a spatial lambda of $\lambda_s = 0.85$ as formulated in equation (3). We can see that compared to only temporal $\lambda_t$, including a spatial $\lambda_s$ leads to a slightly faster convergence and cost savings of around 3-4%.   
 
+<p style="text-align:center;">
+<img src="convergenceSpatioTemporal.png" width="600" height="400" align="center"></p>
 
 ## Implementation instructions
 Data is prepared in Python and an instance is then passed to C++. The raw and processed data is contained in folder [data](data). All code related to preprocessing data (including Isochrone API and DistanceMatrix API) and creating code to create instances is contained in [dataCode](dataCode).
@@ -58,7 +61,7 @@ You can then execute the code with:
 ./onlineAssignment instanceName methodName lambdaTemporal lambdaSpatial
 ```
 
-where **instanceName** gives the path to the .txt file containing the instance information, **methodName** is a string that determines the method which will be applied/trained and lambdaTemporal and lambdaSpatial are float parameters (see section above). For example:
+where **instanceName** gives the path to the .txt file containing the instance information, **methodName** is a string that determines the method which will be applied/trained and **lambdaTemporal** and **lambdaSpatial** are float parameters (see section above). For example:
 
 ```
 ./onlineAssignment instances/instances_900_8_3_30_120_60_train.txt trainREINFORCE 0.8 0.8

@@ -14,15 +14,14 @@ def smooth(scalars, weight):  # Weight between 0 and 1
     return smoothed
 
 lines, lambdas = [], []
-for subdir, dirs, files in os.walk("data/trainingData"):
+for subdir, dirs, files in os.walk("data/trainingData/temporal"):
     for file in sorted(files):
         lam = file[12:17]
         print(lam)
-        if (lam[0] != "1" or lam[-1] != "9"):
-            with open(os.path.join(subdir, file)) as fileToOpen:
-                line = [int(float(line.rstrip())) for line in fileToOpen]
-                lines.append(line)
-                lambdas.append(lam)
+        with open(os.path.join(subdir, file)) as fileToOpen:
+            line = [int(float(line.rstrip())) for line in fileToOpen]
+            lines.append(line)
+            lambdas.append(lam)
 
 x = []
 for j in range(len(lines[0])):
@@ -31,7 +30,7 @@ for j in range(len(lines[0])):
 
 fig, ax = plt.subplots()
 for idx, line in enumerate(lines):
-    plt.plot(x, smooth(line, .8), label=lambdas[idx])
+    plt.plot(x, smooth(line, .8), label="λt = " + lambdas[idx])
 
 
 plt.xlabel("Iteration")
@@ -42,6 +41,33 @@ ax.get_yaxis().set_major_formatter(
     mtick.FuncFormatter(lambda x, p: format(int(x), ',')))
 ax.get_xaxis().set_major_formatter(
     mtick.FuncFormatter(lambda x, p: format(int(x), ',')))
-plt.title('Convergence depend on lambda')
-plt.savefig("convergence.png")
+plt.title('Convergence dependent on temporal lambda')
+plt.savefig("convergenceTemporal.png")
+plt.show()
+
+lines = []
+with open("data/trainingData/spatiotemporal/averageCosts0.9900000.850000.txt") as fileToOpen:
+    line = [int(float(line.rstrip())) for line in fileToOpen]
+    lines.append(line)
+
+with open("data/trainingData/temporal/averageCosts0.990000.txt") as fileToOpen:
+    line = [int(float(line.rstrip())) for line in fileToOpen]
+    lines.append(line)
+
+print(lines)
+
+fig, ax = plt.subplots()
+plt.plot(x, smooth(lines[0], .8), label="λt = 0.99; λs = 0.85")
+plt.plot(x, smooth(lines[1], .8), label="λt = 0.99")
+
+plt.xlabel("Iteration")
+plt.ylabel("Average costs")
+plt.legend()
+plt.yscale("log")
+ax.get_yaxis().set_major_formatter(
+    mtick.FuncFormatter(lambda x, p: format(int(x), ',')))
+ax.get_xaxis().set_major_formatter(
+    mtick.FuncFormatter(lambda x, p: format(int(x), ',')))
+plt.title('Convergence dependent on spatiotemporal lambdas')
+plt.savefig("convergenceSpatioTemporal.png")
 plt.show()

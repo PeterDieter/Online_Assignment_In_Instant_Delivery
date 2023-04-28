@@ -407,7 +407,7 @@ torch::Tensor Environment::getCostsVectorDiscounted(float lambdaTemporal, float 
             costsForOrder = order->arrivalTime-order->orderTime;  
             auto start_iter = std::next(orders.begin(), orderCounter);
             for (auto orderAfter = start_iter; orderAfter != orders.end(); ++orderAfter){
-                // if ((*orderAfter)->assignedWarehouse == order->assignedWarehouse){
+                //if ((*orderAfter)->assignedWarehouse == order->assignedWarehouse){
                     if ((*orderAfter)->arrivalTime != -1){
                         double dist = euclideanDistance((*orderAfter)->assignedWarehouse->lat, order->assignedWarehouse->lat,(*orderAfter)->assignedWarehouse->lon, order->assignedWarehouse->lon);
                         costsForOrder += ((*orderAfter)->arrivalTime-(*orderAfter)->orderTime)*pow(lambdaTemporal, (*orderAfter)->orderTime-order->orderTime) *pow(lambdaSpatial, dist);
