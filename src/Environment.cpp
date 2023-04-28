@@ -218,8 +218,8 @@ void Environment::writeRoutesAndOrdersToFile(std::string fileNameRoutes, std::st
 	else std::cout << "----- IMPOSSIBLE TO OPEN: " << fileNameOrders << std::endl;
 }
 
-void Environment::writeCostsToFile(std::vector<float> costs, float lambda){
-    std::string fileName = "data/trainingData/averageCosts" + std::to_string(lambda) + ".txt";
+void Environment::writeCostsToFile(std::vector<float> costs, float lambdaTemporal, float lambdaSpatial){
+    std::string fileName = "data/trainingData/averageCosts" + std::to_string(lambdaTemporal) + std::to_string(lambdaSpatial) +".txt";
 	std::cout << "----- WRITING COST VECTOR IN : " << fileName << std::endl;
 	std::ofstream myfile(fileName);
 	if (myfile.is_open())
@@ -397,7 +397,7 @@ torch::Tensor Environment::getCostsVector(){
     return costs;
 }
 
-torch::Tensor Environment::getCostsVectorDiscounted(float gamma){
+torch::Tensor Environment::getCostsVectorDiscounted(float lambdaTemporal, float lambdaSpatial){
     std::vector<float> costsVec;
     int orderCounter = 0;
     double costsForOrder;
@@ -407,11 +407,12 @@ torch::Tensor Environment::getCostsVectorDiscounted(float gamma){
             costsForOrder = order->arrivalTime-order->orderTime;  
             auto start_iter = std::next(orders.begin(), orderCounter);
             for (auto orderAfter = start_iter; orderAfter != orders.end(); ++orderAfter){
-                if ((*orderAfter)->assignedWarehouse == order->assignedWarehouse){
+                // if ((*orderAfter)->assignedWarehouse == order->assignedWarehouse){
                     if ((*orderAfter)->arrivalTime != -1){
-                        costsForOrder += ((*orderAfter)->arrivalTime-(*orderAfter)->orderTime)*pow(gamma, (*orderAfter)->orderTime-order->orderTime);
+                        double dist = euclideanDistance((*orderAfter)->assignedWarehouse->lat, order->assignedWarehouse->lat,(*orderAfter)->assignedWarehouse->lon, order->assignedWarehouse->lon);
+                        costsForOrder += ((*orderAfter)->arrivalTime-(*orderAfter)->orderTime)*pow(lambdaTemporal, (*orderAfter)->orderTime-order->orderTime) *pow(lambdaSpatial, dist);
                     }
-                }
+                //}
             } 
         }else{
             costsForOrder = penaltyForNotServing;
@@ -424,6 +425,12 @@ torch::Tensor Environment::getCostsVectorDiscounted(float gamma){
     auto options = torch::TensorOptions().dtype(at::kFloat);
     torch::Tensor costs = torch::from_blob(costsVec.data(), {1, orderCounter}, options).clone().to(torch::kFloat);
     return costs;
+}
+
+double Environment::euclideanDistance(double latFrom, double latTo, double lonFrom, double lonTo){
+    double dx = latFrom - latTo;
+    double dy = lonFrom - lonTo;
+    return std::sqrt(dx * dx + dy * dy)*100;
 }
 
 void Environment::nearestWarehousePolicy(int timeLimit)
@@ -489,9 +496,9 @@ void Environment::nearestWarehousePolicy(int timeLimit)
 }
 
 
-void Environment::trainREINFORCE(int timeLimit, float lambda)
+void Environment::trainREINFORCE(int timeLimit, float lambdaTemporal, float lambdaSpatial)
 {
-    std::cout<<"----- Training REINFORCE starts with lambda " << lambda << " -----"<<std::endl;
+    std::cout<<"----- Training REINFORCE starts with lambda temporal " << lambdaTemporal << " and lambda spatial " << lambdaSpatial << " -----"<<std::endl;
     // Create neural network where each output node is assigned to a warehouse and one extra node for the reject decision
     auto net = std::make_shared<policyNetwork>(data->nbWarehouses*3, data->nbWarehouses+1);
     torch::Tensor loss;
@@ -553,7 +560,7 @@ void Environment::trainREINFORCE(int timeLimit, float lambda)
         }
         // Reset gradients of neural network.
         optimizer.zero_grad();
-        torch::Tensor costs = getCostsVectorDiscounted(lambda);
+        torch::Tensor costs = getCostsVectorDiscounted(lambdaTemporal, lambdaSpatial);
         torch::Tensor pred = net->forward(states);
         auto rows = torch::arange(0, pred.size(0), torch::kLong);
         auto result = pred.index({rows, actions});
@@ -573,7 +580,7 @@ void Environment::trainREINFORCE(int timeLimit, float lambda)
     
     }
     std::cout<<"----- REINFORCE training finished -----"<<std::endl;
-    writeCostsToFile(averageCostVector, lambda);
+    writeCostsToFile(averageCostVector, lambdaTemporal, lambdaSpatial);
     torch::save(net,"src/net_REINFORCE.pt");
     std::cout<<"----- Policy net saved in src/net_REINFORCE.pt -----"<<std::endl;
     
@@ -649,12 +656,12 @@ void Environment::testREINFORCE(int timeLimit)
     
 }
 
-void Environment::simulate(std::string policy, int timeLimit, float lambda)
+void Environment::simulate(std::string policy, int timeLimit, float lambdaTemporal, float lambdaSpatial)
 {
     if (policy == "nearestWarehouse"){
         nearestWarehousePolicy(timeLimit);
     }else if (policy == "trainREINFORCE"){
-        trainREINFORCE(timeLimit, lambda);
+        trainREINFORCE(timeLimit, lambdaTemporal, lambdaSpatial);
     }else if (policy == "testREINFORCE"){
         testREINFORCE(timeLimit);
     }else{

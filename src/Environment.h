@@ -25,7 +25,7 @@ public:
 	Environment(Data* data);
 
 	// Function to perform a simulation
-	void simulate(std::string policy, int timeLimit, float lambda);
+	void simulate(std::string policy, int timeLimit, float lambdaTemporal, float lambdaSpatial);
 
 private:
 	Data* data;												// Problem parameters
@@ -54,7 +54,7 @@ private:
 	// In this method we apply the nearest warehouse policy.
 	void nearestWarehousePolicy(int timelimit);
 	// In these methods we train and test a REINFORCE algorithm
-	void trainREINFORCE(int timelimit, float lambda);
+	void trainREINFORCE(int timelimit, float lambdaTemporal, float lambdaSpatial);
 	void testREINFORCE(int timeLimit);
 
 	// In this method we initialize the rest of the Data, such as warehouses, couriers, etc.
@@ -74,6 +74,9 @@ private:
 	// Function that deletes order from ordersNotServed vector
 	void RemoveOrderFromVector(std::vector<Order*> & V, Order* orderToDelete);
 
+	// Function that returns the euclidean distance between two locations
+	double euclideanDistance(double latFrom, double latTo, double lonFrom, double lonTo);
+
 	// Function that deletes order from ordersNotServed vector
 	void RemoveCourierFromVector(std::vector<Courier*> & V, Courier* courierToDelete);
 
@@ -91,7 +94,7 @@ private:
 
 	// Functions that writes routes/orders and costs to file
 	void writeRoutesAndOrdersToFile(std::string fileNameRoutes, std::string fileNameOrders);
-	void writeCostsToFile(std::vector<float> costs, float lambda);
+	void writeCostsToFile(std::vector<float> costs, float lambdaTemporal, float lambdaSpatial);
 
 	// Function to draw an inter arrival time based on rate specified in data
 	int drawFromExponentialDistribution(double lambda);
@@ -106,7 +109,7 @@ private:
 	torch::Tensor getState(Order* order);
 	// Function that returns the costs of each action
 	torch::Tensor getCostsVector();
-	torch::Tensor getCostsVectorDiscounted(float gamma);
+	torch::Tensor getCostsVectorDiscounted(float lambdaTemporal, float lambdaSpatial);
 };
 
 // Define a new Module.
