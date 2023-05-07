@@ -53,7 +53,7 @@ cmake -DCMAKE_PREFIX_PATH=$PWD/../libtorch
 make
 ```
 
-
+## Running the program
 
 You can then execute the code with:
 
