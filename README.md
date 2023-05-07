@@ -19,7 +19,7 @@ where $s_i$ is the state when the $i^{\text{\tiny th}}$ customer arrives. Howeve
 
 $$
 \begin{align}
-C(s_i, a_i) = w_i + \sum_{j>i \atop{W_i = W_j}} w_j \cdot \lambda_t^{t_j - t_i}
+C(s_i, a_i) = w_i + \sum_{j>i \atop{D_i = D_j}} w_j \cdot \lambda_t^{t_j - t_i}
 \end{align}
 $$
 
@@ -43,7 +43,7 @@ where $d_{ij}$ is the distance between warehouse of customer $i$ and $j$. Keepin
 <p style="text-align:center;">
 <img src="convergenceSpatioTemporal.png" width="600" height="400" align="center"></p>
 
-## Implementation instructions
+## C++ compiling 
 Data is prepared in Python and an instance is then passed to C++. The raw and processed data is contained in folder [data](data). All code related to preprocessing data (including Isochrone API and DistanceMatrix API) and creating code to create instances is contained in [dataCode](dataCode).
 
 For neural network stuff, we use Pytorch. So make sure that Pytorch is installed and check [this](https://github.com/pytorch/pytorch/issues/12449) out if cmake has trouble finding Pytorch. Furthermore, we use cmake to create an executable. Run 
