@@ -407,12 +407,12 @@ torch::Tensor Environment::getCostsVectorDiscounted(float lambdaTemporal, float 
             costsForOrder = order->arrivalTime-order->orderTime;  
             auto start_iter = std::next(orders.begin(), orderCounter);
             for (auto orderAfter = start_iter; orderAfter != orders.end(); ++orderAfter){
-                //if ((*orderAfter)->assignedWarehouse == order->assignedWarehouse){
+                if ((*orderAfter)->assignedWarehouse == order->assignedWarehouse){
                     if ((*orderAfter)->arrivalTime != -1){
                         double dist = euclideanDistance((*orderAfter)->assignedWarehouse->lat, order->assignedWarehouse->lat,(*orderAfter)->assignedWarehouse->lon, order->assignedWarehouse->lon);
                         costsForOrder += ((*orderAfter)->arrivalTime-(*orderAfter)->orderTime)*pow(lambdaTemporal, (*orderAfter)->orderTime-order->orderTime) *pow(lambdaSpatial, dist);
                     }
-                //}
+                }
             } 
         }else{
             costsForOrder = penaltyForNotServing;
@@ -486,7 +486,7 @@ void Environment::nearestWarehousePolicy(int timeLimit)
                 }
             }
         }
-        std::cout<<"----- Simulation finished -----"<<std::endl;
+        //std::cout<<"----- Simulation finished -----"<<std::endl;
         //std::cout<<"----- Number of orders that arrived: " << orders.size() << " and served: " << nbOrdersServed << " Obj. value: " << getObjValue() << ". Mean wt: " << totalWaitingTime/nbOrdersServed <<" seconds. Highest wt: " << highestWaitingTimeOfAnOrder <<" seconds. -----" <<std::endl;
         //writeRoutesAndOrdersToFile("data/animationData/routes.txt", "data/animationData/orders.txt");
         running_costs += getObjValue();
@@ -505,11 +505,11 @@ void Environment::trainREINFORCE(int timeLimit, float lambdaTemporal, float lamb
     // Create an instance of the custom loss function
     logLoss loss_fn;
     // Instantiate an Adam optimization algorithm to update our Net's parameters.
-    torch::optim::Adam optimizer(net->parameters(), /*lr=*/0.00001);
+    torch::optim::Adam optimizer(net->parameters(), /*lr=*/0.0002);
     double running_costs = 0.0;
     double runningCounter = 0.0;
     std::vector< float> averageCostVector;
-    for (int epoch = 1; epoch <= 50000; epoch++) {
+    for (int epoch = 1; epoch <= 8000; epoch++) {
         // Initialize data structures
         initialize(timeLimit);
         // Start with simulation
@@ -647,7 +647,7 @@ void Environment::testREINFORCE(int timeLimit)
                 }
             }
         }
-        //std::cout<<"----- Iteration: " << epoch << " Number of orders that arrived: " << orders.size() << " and served: " << nbOrdersServed << " Obj. value: " << getObjValue() << ". Mean wt: " << totalWaitingTime/nbOrdersServed <<" seconds. Highest wt: " << highestWaitingTimeOfAnOrder <<" seconds. -----" <<std::endl;
+        std::cout<<"----- Iteration: " << epoch << " Number of orders that arrived: " << orders.size() << " and served: " << nbOrdersServed << " Obj. value: " << getObjValue() << ". Mean wt: " << totalWaitingTime/nbOrdersServed <<" seconds. Highest wt: " << highestWaitingTimeOfAnOrder <<" seconds. -----" <<std::endl;
         //writeRoutesAndOrdersToFile("data/animationData/routes_REINFORCE.txt", "data/animationData/orders_REINFORCE.txt");
         running_costs += getObjValue();
         runningCounter += 1;
@@ -656,16 +656,17 @@ void Environment::testREINFORCE(int timeLimit)
     
 }
 
-void Environment::simulate(std::string policy, int timeLimit, float lambdaTemporal, float lambdaSpatial)
-{
-    if (policy == "nearestWarehouse"){
+void Environment::simulate(char *argv[])
+{   
+    int timeLimit = 10800;
+    if (std::string(argv[2]) == "nearestWarehouse"){
         nearestWarehousePolicy(timeLimit);
-    }else if (policy == "trainREINFORCE"){
-        trainREINFORCE(timeLimit, lambdaTemporal, lambdaSpatial);
-    }else if (policy == "testREINFORCE"){
+    }else if (std::string(argv[2]) == "trainREINFORCE"){
+        trainREINFORCE(timeLimit, std::stod(argv[3]), std::stod(argv[4]));
+    }else if (std::string(argv[2]) == "testREINFORCE"){
         testREINFORCE(timeLimit);
     }else{
-        std::cerr<<"Method: " << policy << " not found."<<std::endl;
+        std::cerr<<"Method: " << argv[2] << " not found."<<std::endl;
     }
 
 }

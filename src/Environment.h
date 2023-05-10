@@ -25,7 +25,7 @@ public:
 	Environment(Data* data);
 
 	// Function to perform a simulation
-	void simulate(std::string policy, int timeLimit, float lambdaTemporal, float lambdaSpatial);
+	void simulate(char * argv[]);
 
 private:
 	Data* data;												// Problem parameters

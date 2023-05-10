@@ -15,7 +15,7 @@ int main(int argc, char * argv[])
 
   // Creating the Environment
   Environment environment(&data);
-  environment.simulate(argv[2], 10800, std::stod(argv[3]), std::stod(argv[4]));
+  environment.simulate(argv);
 
 
   // return 0 upon succesful completion

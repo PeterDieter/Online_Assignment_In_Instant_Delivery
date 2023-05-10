@@ -1,8 +1,8 @@
 import subprocess
 
 
-lambdasTemporal = [0.99]
-lambdasSpatial = [0.85]
+lambdasTemporal = [0, 0.5, 0.8, 0.95, 0.99, 1]
+lambdasSpatial = [1]
 # for complex commands, with many args, use string + `shell=True`:
 for lamT in lambdasTemporal:
     for lamS in lambdasSpatial:

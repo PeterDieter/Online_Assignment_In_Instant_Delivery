@@ -30,7 +30,7 @@ for j in range(len(lines[0])):
 
 fig, ax = plt.subplots()
 for idx, line in enumerate(lines):
-    plt.plot(x, smooth(line, .8), label="λt = " + lambdas[idx])
+    plt.plot(x, smooth(line, .8), label="$λ_t$ = " + lambdas[idx])
 
 
 plt.xlabel("Iteration")
@@ -50,15 +50,14 @@ with open("data/trainingData/spatiotemporal/averageCosts0.9900000.850000.txt") a
     line = [int(float(line.rstrip())) for line in fileToOpen]
     lines.append(line)
 
-with open("data/trainingData/temporal/averageCosts0.990000.txt") as fileToOpen:
+with open("data/trainingData/temporal/averageCosts0.9900001.000000.txt") as fileToOpen:
     line = [int(float(line.rstrip())) for line in fileToOpen]
     lines.append(line)
 
-print(lines)
-
 fig, ax = plt.subplots()
-plt.plot(x, smooth(lines[0], .8), label="λt = 0.99; λs = 0.85")
-plt.plot(x, smooth(lines[1], .8), label="λt = 0.99")
+plt.plot(x, smooth(lines[1], .8), label="$λ_t$ = 0.99")
+plt.plot(x, smooth(lines[0], .8), label="$λ_t$ = 0.99; $λ_s$ = 0.85")
+
 
 plt.xlabel("Iteration")
 plt.ylabel("Average costs")
