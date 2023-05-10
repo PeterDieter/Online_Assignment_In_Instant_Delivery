@@ -4,8 +4,9 @@ In the problem at hand, we operate multiple warehouse (depots) in a service regi
 
 Visualization of the problem (made in [visualizeSimulation.py](python/visualizeSimulation.py)):
 
-<p style="text-align:center;">
-<img src="animation.gif" width="300" height="400" align="center"></p>
+<p align="center">
+<img src="animation.gif" width="300" height="400" align="center">
+</p>
 
 
 ## Data
@@ -31,7 +32,7 @@ $$
 
 where $\lambda_t$ is a parameter that determines how much future costs weight and $t_j$ ($t_j$) is the time customer $i$ ($j$) arrives in the system. Therefore, costs of customers further in the future weigh less than costs of customers in the close future. If $\lambda_t = 0$, the equation reduces to equation $(1)$. This approach resembles quite a bit to the TD($\lambda$) method. The following graph shows the convergence for different values of $\lambda_t$. Be ware that all results shown below are preliminary and at a very early stage. 
 
-<p style="text-align:center;">
+<p align="center">
 <img src="convergenceTemporal.png" width="600" height="400" align="center"></p>
 
 We can see that a value of $\lambda_t = 0.99$ leads to the best results, and saves around 9% of costs compared to $\lambda_t = 0$. Further, we can see that the higher $\lambda_t$, the slower the convergence.
@@ -46,7 +47,7 @@ $$
 
 where $d_{ij}$ is the distance between warehouse of customer $i$ and $j$. Keeping $\lambda_t$ at  $0.99$, the following graph shows the convergence if we include a spatial lambda of $\lambda_s = 0.85$ as formulated in equation (3). We can see that compared to only temporal $\lambda_t$, including a spatial $\lambda_s$ leads to a slightly faster convergence and cost savings of around 10%. From other tests (not shown here), we also found that using spatial information for the credit assignment becomes increasingly important when interarrival time of orders is low, i.e., we need to make more deliberate deicisons to which warehouse to assign an order. 
 
-<p style="text-align:center;">
+<p align="center">
 <img src="convergenceSpatioTemporal.png" width="600" height="400" align="center"></p>
 
 
