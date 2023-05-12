@@ -301,11 +301,9 @@ void Environment::chooseWarehouseForOrder(Order* newOrder)
     newOrder->accepted = true;
 }
 
-torch::Tensor Environment::getState(Order* order){
+torch::Tensor Environment::getStateAssignmentProblem(Order* order){
     // For now, the state is only the distances to the warehouses
     std::vector<int> distancesToWarehouses = data->travelTime.getRow(order->client->clientID);
-    double maxElement = distancesToWarehouses[std::max_element(distancesToWarehouses.begin(), distancesToWarehouses.end())-distancesToWarehouses.begin()];
-    
     std::vector<float> state;
     for (int i = 0; i < distancesToWarehouses.size(); i++) {
         state.push_back(distancesToWarehouses[i]);
@@ -321,6 +319,26 @@ torch::Tensor Environment::getState(Order* order){
     auto options = torch::TensorOptions().dtype(at::kFloat);
     torch::Tensor inputs = torch::from_blob(state.data(), {1, data->nbWarehouses*3}, options).clone().to(torch::kFloat);
     return inputs;
+}
+
+torch::Tensor Environment::getStateRebalancingProblem(Courier* courier){
+    // For now, the state is only the distances to the warehouses
+    std::vector<int> distancesToWarehouses = data->travelTime.getRow(courier->assignedToOrder->client->clientID);
+    std::vector<float> state;
+    for (int i = 0; i < distancesToWarehouses.size(); i++) {
+        state.push_back(distancesToWarehouses[i]);
+    }
+    
+    std::vector<int> wareHouseLoad;
+    for (Warehouse* w : warehouses){
+        state.push_back(w->couriersAssigned.size());
+        state.push_back(getFastestAvailablePicker(w)->timeWhenAvailable);
+    }
+
+    // vector to tensor
+    auto options = torch::TensorOptions().dtype(at::kFloat);
+    torch::Tensor inputs = torch::from_blob(state.data(), {1, data->nbWarehouses*3}, options).clone().to(torch::kFloat);
+    return inputs; 
 }
 
 int Environment::getObjValue(){
@@ -340,9 +358,9 @@ int Environment::getObjValue(){
 }
 
 
-void Environment::warehouseForOrderREINFORCE(Order* newOrder, policyNetwork& n, bool train)
+void Environment::chooseWarehouseForOrderREINFORCE(Order* newOrder, policyNetwork& n, bool train)
 {
-    torch::Tensor state = getState(newOrder);
+    torch::Tensor state = getStateAssignmentProblem(newOrder);
     torch::Tensor prediction = n.forward(state);
     // Prediction tensor to vector
     std::vector<float> predVector(prediction.data_ptr<float>(), prediction.data_ptr<float>() + prediction.numel());
@@ -375,29 +393,7 @@ void Environment::warehouseForOrderREINFORCE(Order* newOrder, policyNetwork& n, 
 
 }
 
-torch::Tensor Environment::getCostsVector(){
-    std::vector<float> costsVec;
-    int orderCounter = 0;
-    for (Order* order: orders){
-        orderCounter ++;
-        if (order->accepted){
-            if (order->arrivalTime == -1){
-                costsVec.push_back(penaltyForNotServing);
-            }else{
-                costsVec.push_back((order->arrivalTime-order->orderTime));   
-            }
-        }else{
-            costsVec.push_back(penaltyForNotServing);
-        }
-    }
-
-    // vector to tensor
-    auto options = torch::TensorOptions().dtype(at::kFloat);
-    torch::Tensor costs = torch::from_blob(costsVec.data(), {1, orderCounter}, options).clone().to(torch::kFloat);
-    return costs;
-}
-
-torch::Tensor Environment::getCostsVectorDiscounted(float lambdaTemporal, float lambdaSpatial){
+torch::Tensor Environment::getCostsVectorDiscountedAssignmentProblem(float lambdaTemporal, float lambdaSpatial){
     std::vector<float> costsVec;
     int orderCounter = 0;
     double costsForOrder;
@@ -407,12 +403,12 @@ torch::Tensor Environment::getCostsVectorDiscounted(float lambdaTemporal, float 
             costsForOrder = order->arrivalTime-order->orderTime;  
             auto start_iter = std::next(orders.begin(), orderCounter);
             for (auto orderAfter = start_iter; orderAfter != orders.end(); ++orderAfter){
-                if ((*orderAfter)->assignedWarehouse == order->assignedWarehouse){
+               // if ((*orderAfter)->assignedWarehouse == order->assignedWarehouse){
                     if ((*orderAfter)->arrivalTime != -1){
                         double dist = euclideanDistance((*orderAfter)->assignedWarehouse->lat, order->assignedWarehouse->lat,(*orderAfter)->assignedWarehouse->lon, order->assignedWarehouse->lon);
                         costsForOrder += ((*orderAfter)->arrivalTime-(*orderAfter)->orderTime)*pow(lambdaTemporal, (*orderAfter)->orderTime-order->orderTime) *pow(lambdaSpatial, dist);
                     }
-                }
+                //}
             } 
         }else{
             costsForOrder = penaltyForNotServing;
@@ -424,6 +420,36 @@ torch::Tensor Environment::getCostsVectorDiscounted(float lambdaTemporal, float 
     // vector to tensor
     auto options = torch::TensorOptions().dtype(at::kFloat);
     torch::Tensor costs = torch::from_blob(costsVec.data(), {1, orderCounter}, options).clone().to(torch::kFloat);
+    return costs;
+}
+
+torch::Tensor Environment::getCostsVectorDiscountedRebalancingProblem(float lambdaTemporal, float lambdaSpatial){
+    std::vector<float> costsVecRebalancing;
+    int orderCounter = 0;
+    double costsForOrder;
+    for (Order* order: orders){
+        orderCounter ++;
+        if (order->accepted){
+            costsForOrder = order->arrivalTime-order->orderTime;  
+            auto start_iter = std::next(orders.begin(), orderCounter);
+            for (auto orderAfter = start_iter; orderAfter != orders.end(); ++orderAfter){
+               // if ((*orderAfter)->assignedWarehouse == order->assignedWarehouse){
+                    if ((*orderAfter)->arrivalTime != -1){
+                        double dist = euclideanDistance((*orderAfter)->assignedWarehouse->lat, order->assignedWarehouse->lat,(*orderAfter)->assignedWarehouse->lon, order->assignedWarehouse->lon);
+                        costsForOrder += ((*orderAfter)->arrivalTime-(*orderAfter)->orderTime)*pow(lambdaTemporal, (*orderAfter)->orderTime-order->orderTime) *pow(lambdaSpatial, dist);
+                    }
+                //}
+            } 
+        }else{
+            costsForOrder = penaltyForNotServing;
+        }
+        //std::cout<<"Costs: "<<costsForOrder<<" "<<order->arrivalTime<<" "<<order->orderTime<<std::endl;
+        costsVecRebalancing.push_back(costsForOrder);
+    }
+
+    // vector to tensor
+    auto options = torch::TensorOptions().dtype(at::kFloat);
+    torch::Tensor costs = torch::from_blob(costsVecRebalancing.data(), {1, orderCounter}, options).clone().to(torch::kFloat);
     return costs;
 }
 
@@ -532,7 +558,7 @@ void Environment::trainREINFORCE(int timeLimit, float lambdaTemporal, float lamb
                 initOrder(timeCustomerArrives, newOrder);
                 orders.push_back(newOrder);
                 // We immediately assign the order to a warehouse and a picker
-                warehouseForOrderREINFORCE(newOrder, *net, true);
+                chooseWarehouseForOrderREINFORCE(newOrder, *net, true);
                 if (newOrder->accepted){
                     choosePickerForOrder(newOrder);
                     // If there are couriers assigned to the warehouse, we can assign a courier to the order
@@ -560,7 +586,7 @@ void Environment::trainREINFORCE(int timeLimit, float lambdaTemporal, float lamb
         }
         // Reset gradients of neural network.
         optimizer.zero_grad();
-        torch::Tensor costs = getCostsVectorDiscounted(lambdaTemporal, lambdaSpatial);
+        torch::Tensor costs = getCostsVectorDiscountedAssignmentProblem(lambdaTemporal, lambdaSpatial);
         torch::Tensor pred = net->forward(states);
         auto rows = torch::arange(0, pred.size(0), torch::kLong);
         auto result = pred.index({rows, actions});
@@ -621,7 +647,7 @@ void Environment::testREINFORCE(int timeLimit)
                 initOrder(timeCustomerArrives, newOrder);
                 orders.push_back(newOrder);
                 // We immediately assign the order to a warehouse and a picker
-                warehouseForOrderREINFORCE(newOrder, *net, false);
+                chooseWarehouseForOrderREINFORCE(newOrder, *net, false);
                 if (newOrder->accepted){
                     choosePickerForOrder(newOrder);
                     // If there are couriers assigned to the warehouse, we can assign a courier to the order

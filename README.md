@@ -1,6 +1,6 @@
 # Spatio-temporal Credit Assignment in Reinforcement Learning for Multi-Depot Delivery Services
 
-In the problem at hand, we operate multiple warehouse (depots) in a service region from which couriers start their trip to serve an order. When an order arrives, we now need to assign it to a warehouse and a courier. The goal is to minimize the waiting time of customers. We can also reject customers, which comes with certain costs. Furthermore, we can also rebalance couriers by re-assinging them to the warehouses. Therefore, we split up the problem into two subproblems: The problem of assigning orders to warehouses and couriers (**assignment problem**) and the problem of rebalancing the couriers (**rebalancing problem**).
+In the problem at hand, we operate multiple warehouse (depots) in a service region from which couriers start their trip to serve an order. When an order arrives, we need to assign it to a warehouse and a courier. The goal is to minimize the waiting time of customers. We can also reject customers, which comes with certain costs. Furthermore, we can also rebalance couriers by re-assinging them to the warehouses. Therefore, we decompose the problem into two subproblems: The problem of assigning orders to warehouses and couriers (**assignment problem**) and the problem of rebalancing the couriers (**rebalancing problem**).
 
 Visualization of the problem (made in [visualizeSimulation.py](python/visualizeSimulation.py)):
 
@@ -14,11 +14,11 @@ For the warehouses, we use (the 10) Getir stores in Chicago. For the order data,
 
 ## Assignment problem
 
-To solve the assignment problem, we now have implemented the REINFORCE algorithm. We aggregate the states by a set of features in use a deep neural network to approximate the policy function. In the REINFORCE method, a crucial part is the credit assignment problem, i.e., the problem to assign credit to a specific action. Naturally, we could just state that an action $a_i$ is the waiting time for customer $i$, i.e., $w_i$. Mathematically, we can express this as:
+To solve the assignment problem, we now have implemented the REINFORCE algorithm. We aggregate the states by a set of features and use a deep neural network to approximate the policy function. In the REINFORCE method, a crucial part is the credit assignment problem, i.e., the problem to assign credit to a specific action. Naturally, we could just state that an action $a_i$ is the waiting time for customer $i$, i.e., $w_i$. Mathematically, we can express this as:
 
 $$
 \begin{align}
-C(s_i, a_i) = w_i
+C(s_i, a_i) = w_i \tag{1}
 \end{align}
 $$
 
@@ -26,7 +26,7 @@ where $s_i$ is the state when the $i^{\text{\tiny th}}$ customer arrives. Howeve
 
 $$
 \begin{align}
-C(s_i, a_i) = w_i + \sum_{j>i \atop{D_i = D_j}} w_j \cdot \lambda_t^{t_j - t_i}
+C(s_i, a_i) = w_i + \sum_{j>i \atop{D_i = D_j}} w_j \cdot \lambda_t^{t_j - t_i} \tag{2}
 \end{align}
 $$
 
@@ -35,17 +35,17 @@ where $\lambda_t$ is a parameter that determines how much future costs weight an
 <p align="center">
 <img src="convergenceTemporal.png" width="600" height="400" align="center"></p>
 
-We can see that a value of $\lambda_t = 0.99$ leads to the best results, and saves around 9% of costs compared to $\lambda_t = 0$. Further, we can see that the higher $\lambda_t$, the slower the convergence.
+We can see that a value of $\lambda_t = 0.99$ leads to the best results, and saves around 8% of costs compared to $\lambda_t = 0$. Further, we can see that the higher $\lambda_t$, the slower the convergence.
 
 What we now plan to do is to not only consider temporal vicinity, but also spatial vicinity, as future customers geographically close to customer $i$ should weigh more in the cost approximation of customer $i$, compared to customers further away. We implemented the following:
 
 $$
 \begin{align}
-C(s_i, a_i) = w_i + \sum_{j>i} w_j \cdot \lambda_t^{t_j - t_i} \cdot \lambda_s^{d_{ij}}
+C(s_i, a_i) = w_i + \sum_{j>i} w_j \cdot \lambda_t^{t_j - t_i} \cdot \lambda_s^{d_{ij}} \tag{3}
 \end{align}
 $$
 
-where $d_{ij}$ is the distance between warehouse of customer $i$ and $j$. Keeping $\lambda_t$ at  $0.99$, the following graph shows the convergence if we include a spatial lambda of $\lambda_s = 0.85$ as formulated in equation (3). We can see that compared to only temporal $\lambda_t$, including a spatial $\lambda_s$ leads to a slightly faster convergence and cost savings of around 10%. From other tests (not shown here), we also found that using spatial information for the credit assignment becomes increasingly important when interarrival time of orders is low, i.e., we need to make more deliberate deicisons to which warehouse to assign an order. 
+where $d_{ij}$ is the distance between warehouse of customer $i$ and $j$. Keeping $\lambda_t$ at  $0.99$, the following graph shows the convergence if we include a spatial lambda of $\lambda_s = 0.85$ as formulated in equation (3). We can see that compared to only temporal $\lambda_t$, including a spatial $\lambda_s$ leads to a slightly faster convergence and cost savings of around 10%. From other tests (not shown here), we also found that using spatial information for the credit assignment becomes increasingly important when interarrival time of orders is low, i.e., we need to make more deliberate decisions to which warehouse to assign an order. 
 
 <p align="center">
 <img src="convergenceSpatioTemporal.png" width="600" height="400" align="center"></p>

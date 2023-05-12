@@ -28,7 +28,7 @@ public:
 	void simulate(char * argv[]);
 
 private:
-	Data* data;												// Problem parameters
+	Data* data;													// Problem parameters
 	std::vector<Order*> orders;									// Vector of pointers to orders. containing information on each order
 	std::vector<Order*> ordersAssignedToCourierButNotServed;	// Vector of orders that have not been served yet
 	std::vector<Warehouse*> warehouses;							// Vector of pointers containing information on each warehouse
@@ -67,6 +67,9 @@ private:
 	void chooseWarehouseForOrder(Order* newOrder);
 	void choosePickerForOrder(Order* newOrder);
 	void chooseCourierForOrder(Order* newOrder);
+	
+	// Function that assigns order to a warehouse with the REINFORCE algorithm
+	void chooseWarehouseForOrderREINFORCE(Order* newOrder, policyNetwork& n, bool train);
 
 	// Function that assigns a courier to a warehouse
 	void chooseWarehouseForCourier(Courier* courier);
@@ -102,14 +105,13 @@ private:
 	// Function that returns the objective value (waiting time + penalty)
 	int getObjValue();
 
-	// Function that assigns order to a warehouse with the REINFORCE algorithm
-	void warehouseForOrderREINFORCE(Order* newOrder, policyNetwork& n, bool train);
 
 	// Function that returns the state as a tensor
-	torch::Tensor getState(Order* order);
+	torch::Tensor getStateAssignmentProblem(Order* order);
+	torch::Tensor getStateRebalancingProblem(Courier* courier);
 	// Function that returns the costs of each action
-	torch::Tensor getCostsVector();
-	torch::Tensor getCostsVectorDiscounted(float lambdaTemporal, float lambdaSpatial);
+	torch::Tensor getCostsVectorDiscountedAssignmentProblem(float lambdaTemporal, float lambdaSpatial);
+	torch::Tensor getCostsVectorDiscountedRebalancingProblem(float lambdaTemporal, float lambdaSpatial);
 };
 
 // Define a new Module.
