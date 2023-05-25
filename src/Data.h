@@ -57,9 +57,9 @@ struct Order
 // Structure of a route. This is stored mainly for plotting purposes later on
 struct Route
 {
-	double fromlLat;				// From latitude
-	double fromlon;					// From longitude
-	double tolLat;					// From latitude
+	double fromLat;					// From latitude
+	double fromLon;					// From longitude
+	double toLat;					// From latitude
 	double tolon;					// From longitude
 	int startTime;					// 
 	int arrivalTime;				// time the courier arrives at the client, i.e., the client is served

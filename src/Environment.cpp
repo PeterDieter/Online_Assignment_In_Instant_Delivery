@@ -32,11 +32,13 @@ void Environment::initialize(int timeLimit)
     highestWaitingTimeOfAnOrder = 0;
     latestArrivalTime = 0;
     nbOrdersServed = 0;
+    rejectCount = 0;
     ordersAssignedToCourierButNotServed = std::vector<Order*>(0);
     couriers = std::vector<Courier*>(0);
     pickers = std::vector<Picker*>(0);
     orders = std::vector<Order*>(0);
     routes = std::vector<Route*>(0);
+    rebalanceDecisions = std::vector<Route*>(0);
     warehouses = std::vector<Warehouse*>(0);
 
     for (int wID = 0; wID < data->nbWarehouses; wID++)
@@ -150,7 +152,7 @@ void Environment::chooseWarehouseForCourier(Courier* courier)
     // draw service time needed to serve the client at the door
     courier->assignedToOrder->serviceTimeAtClient = timesToServe[courier->assignedToOrder->orderID];   
     // Compute the time the courier is available again, i.e., can leave the warehouse that we just assigned him to
-    courier->timeWhenAvailable = nextOrderBeingServed->arrivalTime + courier->assignedToOrder->serviceTimeAtClient + data->travelTime.get(nextOrderBeingServed->client->clientID, courier->assignedToWarehouse->wareID);
+    courier->timeWhenAvailable = courier->assignedToOrder->arrivalTime + courier->assignedToOrder->serviceTimeAtClient + data->travelTime.get(courier->assignedToOrder->client->clientID, courier->assignedToWarehouse->wareID);
     // Add the courier to the vector of assigned couriers at the respective warehouse
     courier->assignedToWarehouse->couriersAssigned.push_back(courier);
     // Increment the number of order that have been served
@@ -164,7 +166,7 @@ void Environment::chooseWarehouseForCourier(Courier* courier)
         latestArrivalTime = courier->timeWhenAvailable;
     }
     
-    saveRoute(nextOrderBeingServed->arrivalTime, courier->timeWhenAvailable, nextOrderBeingServed->client->lat, nextOrderBeingServed->client->lon, courier->assignedToWarehouse->lat, courier->assignedToWarehouse->lon);
+    saveRoute(courier->assignedToOrder->arrivalTime, courier->timeWhenAvailable, courier->assignedToOrder->client->lat, courier->assignedToOrder->client->lon, courier->assignedToWarehouse->lat, courier->assignedToWarehouse->lon);
     
     // Remove the order from the order that have not been served
     RemoveOrderFromVector(ordersAssignedToCourierButNotServed, nextOrderBeingServed);
@@ -175,7 +177,7 @@ void Environment::chooseWarehouseForCourier(Courier* courier)
 
 void Environment::saveRoute(int startTime, int arrivalTime, double fromLat, double fromLon, double toLat, double toLon){
     Route* route = new Route;
-    route->fromlLat = fromLat; route->fromlon = fromLon; route->tolLat = toLat; route->tolon = toLon;
+    route->fromLat = fromLat; route->fromLon = fromLon; route->toLat = toLat; route->tolon = toLon;
     route->startTime = startTime;
     route->arrivalTime = arrivalTime;
     routes.push_back(route);
@@ -189,7 +191,7 @@ void Environment::writeRoutesAndOrdersToFile(std::string fileNameRoutes, std::st
 		for (auto route : routes)
 		{
             // Here we print the order of customers that we visit 
-            myfile << route->startTime << " " << route->arrivalTime << " " << route->fromlLat << " " << route->fromlon << " " << route->tolLat << " " << route->tolon;
+            myfile << route->startTime << " " << route->arrivalTime << " " << route->fromLat << " " << route->fromLon << " " << route->toLat << " " << route->tolon;
             myfile << std::endl;
 		}
 	}
@@ -216,6 +218,22 @@ void Environment::writeRoutesAndOrdersToFile(std::string fileNameRoutes, std::st
 		}
 	}
 	else std::cout << "----- IMPOSSIBLE TO OPEN: " << fileNameOrders << std::endl;
+}
+
+int Environment::getObjValue(){
+    int objectiveValue = 0;
+    for (Order* order: orders){
+        if (order->accepted){
+            if (order->arrivalTime == -1){
+                objectiveValue += penaltyForNotServing;
+            }else{
+                objectiveValue += (order->arrivalTime-order->orderTime); 
+            }
+        }else{
+            objectiveValue += penaltyForNotServing;
+        }
+    } 
+    return objectiveValue;
 }
 
 void Environment::writeCostsToFile(std::vector<float> costs, float lambdaTemporal, float lambdaSpatial){
@@ -317,8 +335,8 @@ torch::Tensor Environment::getStateAssignmentProblem(Order* order){
 
     // vector to tensor
     auto options = torch::TensorOptions().dtype(at::kFloat);
-    torch::Tensor inputs = torch::from_blob(state.data(), {1, data->nbWarehouses*3}, options).clone().to(torch::kFloat);
-    return inputs;
+    torch::Tensor stateTensor = torch::from_blob(state.data(), {1, data->nbWarehouses*3}, options).clone().to(torch::kFloat);
+    return stateTensor;
 }
 
 torch::Tensor Environment::getStateRebalancingProblem(Courier* courier){
@@ -332,29 +350,13 @@ torch::Tensor Environment::getStateRebalancingProblem(Courier* courier){
     std::vector<int> wareHouseLoad;
     for (Warehouse* w : warehouses){
         state.push_back(w->couriersAssigned.size());
-        state.push_back(getFastestAvailablePicker(w)->timeWhenAvailable);
+        state.push_back(w->ordersNotAssignedToCourier.size());
     }
 
     // vector to tensor
     auto options = torch::TensorOptions().dtype(at::kFloat);
-    torch::Tensor inputs = torch::from_blob(state.data(), {1, data->nbWarehouses*3}, options).clone().to(torch::kFloat);
-    return inputs; 
-}
-
-int Environment::getObjValue(){
-    int objectiveValue = 0;
-    for (Order* order: orders){
-        if (order->accepted){
-            if (order->arrivalTime == -1){
-                objectiveValue += penaltyForNotServing;
-            }else{
-                objectiveValue += (order->arrivalTime-order->orderTime); 
-            }
-        }else{
-            objectiveValue += penaltyForNotServing;
-        }
-    } 
-    return objectiveValue;
+    torch::Tensor stateTensor = torch::from_blob(state.data(), {1, data->nbWarehouses*3}, options).clone().to(torch::kFloat);
+    return stateTensor; 
 }
 
 
@@ -376,6 +378,7 @@ void Environment::chooseWarehouseForOrderREINFORCE(Order* newOrder, policyNetwor
     // If the index is nb.warehouses, we reject the order
     if (indexWarehouse >= data->nbWarehouses){
         newOrder->accepted = false;
+        rejectCount++;
     }else{
         newOrder->assignedWarehouse = warehouses[indexWarehouse];
         newOrder->accepted = true;
@@ -383,13 +386,72 @@ void Environment::chooseWarehouseForOrderREINFORCE(Order* newOrder, policyNetwor
 
     if (train){
         if (newOrder->orderID == 0){
-            states = state;
-            actions = torch::tensor({indexWarehouse});
+            assingmentProblemStates = state;
+            assingmentProblemActions = torch::tensor({indexWarehouse});
         }else{
-            states = torch::cat({states, state});
-            actions = torch::cat({actions, torch::tensor({indexWarehouse})});
+            assingmentProblemStates = torch::cat({assingmentProblemStates, state});
+            assingmentProblemActions = torch::cat({assingmentProblemActions, torch::tensor({indexWarehouse})});
         }
     }
+}
+
+void Environment::chooseWarehouseForCourierREINFORCE(Courier* courier, policyNetwork& n, bool train){
+    torch::Tensor state = getStateRebalancingProblem(courier);
+    torch::Tensor prediction = n.forward(state);
+
+    std::vector<float> predVector(prediction.data_ptr<float>(), prediction.data_ptr<float>() + prediction.numel());
+    int indexWarehouse;
+    if (train){
+        std::discrete_distribution<> discrete_dist(predVector.begin(), predVector.end());
+        // Choose based on the distribution
+        indexWarehouse = discrete_dist(data->rng);
+    }else{
+        indexWarehouse = std::max_element(predVector.begin(), predVector.end())-predVector.begin();
+    }
+
+    courier->assignedToOrder->serviceTimeAtClient = timesToServe[courier->assignedToOrder->orderID];   
+    // Compute the time the courier is available again, i.e., can leave the warehouse that we just assigned him to
+    courier->assignedToWarehouse = warehouses[indexWarehouse];
+    courier->timeWhenAvailable = courier->assignedToOrder->arrivalTime + courier->assignedToOrder->serviceTimeAtClient + data->travelTime.get(courier->assignedToOrder->client->clientID, courier->assignedToWarehouse->wareID);
+    // Add the courier to the vector of assigned couriers at the respective warehouse
+    courier->assignedToWarehouse->couriersAssigned.push_back(courier);
+    // Increment the number of order that have been served
+    nbOrdersServed ++;
+    totalWaitingTime += courier->assignedToOrder->arrivalTime - courier->assignedToOrder->orderTime;
+    if (highestWaitingTimeOfAnOrder < courier->assignedToOrder->arrivalTime - courier->assignedToOrder->orderTime)
+    {
+        highestWaitingTimeOfAnOrder = courier->assignedToOrder->arrivalTime - courier->assignedToOrder->orderTime;
+    }
+    if (latestArrivalTime < courier->timeWhenAvailable){
+        latestArrivalTime = courier->timeWhenAvailable;
+    }
+    
+    saveRoute(courier->assignedToOrder->arrivalTime, courier->timeWhenAvailable, courier->assignedToOrder->client->lat, courier->assignedToOrder->client->lon, courier->assignedToWarehouse->lat, courier->assignedToWarehouse->lon);
+    
+    // Add decision to vector of rebalance decisions
+    Route* decision = new Route;
+    decision->startTime = courier->assignedToOrder->arrivalTime + courier->assignedToOrder->serviceTimeAtClient;
+    decision->fromLat = courier->assignedToOrder->client->lat;
+    decision->fromLon = courier->assignedToOrder->client->lon;
+    rebalanceDecisions.push_back(decision);
+
+    // Save state and chosen action
+    if (train){
+        if (nbOrdersServed == 1){
+            rebalancingProblemStates = state;
+            rebalancingProblemActions = torch::tensor({indexWarehouse});
+        }else{
+            rebalancingProblemStates = torch::cat({rebalancingProblemStates, state});
+            rebalancingProblemActions = torch::cat({rebalancingProblemActions, torch::tensor({indexWarehouse})});
+        }
+    }
+
+    // Remove the order from the order that have not been served
+    RemoveOrderFromVector(ordersAssignedToCourierButNotServed, nextOrderBeingServed);
+    // Update the order that will be served next
+    updateOrderBeingServedNext();
+    courier->assignedToOrder = nullptr;
+
 
 }
 
@@ -400,7 +462,12 @@ torch::Tensor Environment::getCostsVectorDiscountedAssignmentProblem(float lambd
     for (Order* order: orders){
         orderCounter ++;
         if (order->accepted){
-            costsForOrder = order->arrivalTime-order->orderTime;  
+            if (order->arrivalTime != -1){
+                costsForOrder = order->arrivalTime-order->orderTime;  
+            }else{
+                costsForOrder = penaltyForNotServing;
+                continue;
+            }
             auto start_iter = std::next(orders.begin(), orderCounter);
             for (auto orderAfter = start_iter; orderAfter != orders.end(); ++orderAfter){
                // if ((*orderAfter)->assignedWarehouse == order->assignedWarehouse){
@@ -409,6 +476,7 @@ torch::Tensor Environment::getCostsVectorDiscountedAssignmentProblem(float lambd
                         costsForOrder += ((*orderAfter)->arrivalTime-(*orderAfter)->orderTime)*pow(lambdaTemporal, (*orderAfter)->orderTime-order->orderTime) *pow(lambdaSpatial, dist);
                     }
                 //}
+
             } 
         }else{
             costsForOrder = penaltyForNotServing;
@@ -423,33 +491,31 @@ torch::Tensor Environment::getCostsVectorDiscountedAssignmentProblem(float lambd
     return costs;
 }
 
-torch::Tensor Environment::getCostsVectorDiscountedRebalancingProblem(float lambdaTemporal, float lambdaSpatial){
+torch::Tensor Environment::getCostsVectorDiscountedRebalancingProblem(std::vector<Route*> rebalanceDecisions, float lambdaTemporal, float lambdaSpatial){
     std::vector<float> costsVecRebalancing;
     int orderCounter = 0;
-    double costsForOrder;
-    for (Order* order: orders){
-        orderCounter ++;
-        if (order->accepted){
-            costsForOrder = order->arrivalTime-order->orderTime;  
-            auto start_iter = std::next(orders.begin(), orderCounter);
-            for (auto orderAfter = start_iter; orderAfter != orders.end(); ++orderAfter){
-               // if ((*orderAfter)->assignedWarehouse == order->assignedWarehouse){
-                    if ((*orderAfter)->arrivalTime != -1){
-                        double dist = euclideanDistance((*orderAfter)->assignedWarehouse->lat, order->assignedWarehouse->lat,(*orderAfter)->assignedWarehouse->lon, order->assignedWarehouse->lon);
-                        costsForOrder += ((*orderAfter)->arrivalTime-(*orderAfter)->orderTime)*pow(lambdaTemporal, (*orderAfter)->orderTime-order->orderTime) *pow(lambdaSpatial, dist);
-                    }
-                //}
-            } 
-        }else{
-            costsForOrder = penaltyForNotServing;
-        }
-        //std::cout<<"Costs: "<<costsForOrder<<" "<<order->arrivalTime<<" "<<order->orderTime<<std::endl;
-        costsVecRebalancing.push_back(costsForOrder);
+    double costsForDecision;
+    for (Route* decision: rebalanceDecisions){
+        auto start_iter = std::next(orders.begin(), 0);
+        costsForDecision = 0;
+        for (auto orderAfter = start_iter; orderAfter != orders.end(); ++orderAfter){
+            if ((*orderAfter)->arrivalTime != -1){
+                if (decision->startTime < (*orderAfter)->orderTime){
+                    orderCounter++;
+                }else{
+                    double dist = euclideanDistance((*orderAfter)->assignedWarehouse->lat, decision->fromLat,(*orderAfter)->assignedWarehouse->lon, decision->fromLon);
+                    costsForDecision += ((*orderAfter)->arrivalTime-(*orderAfter)->orderTime)*pow(lambdaTemporal, decision->startTime-(*orderAfter)->orderTime) *pow(1, dist);
+                }
+            }else{
+                costsForDecision += penaltyForNotServing;
+            }
+        } 
+        costsVecRebalancing.push_back(costsForDecision);
     }
 
     // vector to tensor
     auto options = torch::TensorOptions().dtype(at::kFloat);
-    torch::Tensor costs = torch::from_blob(costsVecRebalancing.data(), {1, orderCounter}, options).clone().to(torch::kFloat);
+    torch::Tensor costs = torch::from_blob(costsVecRebalancing.data(), {1, (int) rebalanceDecisions.size()}, options).clone().to(torch::kFloat);
     return costs;
 }
 
@@ -526,12 +592,18 @@ void Environment::trainREINFORCE(int timeLimit, float lambdaTemporal, float lamb
 {
     std::cout<<"----- Training REINFORCE starts with lambda temporal " << lambdaTemporal << " and lambda spatial " << lambdaSpatial << " -----"<<std::endl;
     // Create neural network where each output node is assigned to a warehouse and one extra node for the reject decision
-    auto net = std::make_shared<policyNetwork>(data->nbWarehouses*3, data->nbWarehouses+1);
-    torch::Tensor loss;
+    auto assignmentNet = std::make_shared<policyNetwork>(data->nbWarehouses*3, data->nbWarehouses+1);
+    torch::Tensor lossAssignmentNet;
+    
+    // Create neural network where each output node is assigned to a warehouse 
+    auto rebalanceNet = std::make_shared<policyNetwork>(data->nbWarehouses*3, data->nbWarehouses);
+    torch::Tensor lossRebalanceNet;
+
     // Create an instance of the custom loss function
     logLoss loss_fn;
-    // Instantiate an Adam optimization algorithm to update our Net's parameters.
-    torch::optim::Adam optimizer(net->parameters(), /*lr=*/0.0002);
+    // Instantiate an Adam optimization algorithm to update our Nets' parameters.
+    torch::optim::Adam optimizerAssignmentNet(assignmentNet->parameters(), /*lr=*/0.0002);
+    torch::optim::Adam optimizerRebalanceNet(rebalanceNet->parameters(), /*lr=*/0.0002);
     double running_costs = 0.0;
     double runningCounter = 0.0;
     std::vector< float> averageCostVector;
@@ -558,7 +630,7 @@ void Environment::trainREINFORCE(int timeLimit, float lambdaTemporal, float lamb
                 initOrder(timeCustomerArrives, newOrder);
                 orders.push_back(newOrder);
                 // We immediately assign the order to a warehouse and a picker
-                chooseWarehouseForOrderREINFORCE(newOrder, *net, true);
+                chooseWarehouseForOrderREINFORCE(newOrder, *assignmentNet, true);
                 if (newOrder->accepted){
                     choosePickerForOrder(newOrder);
                     // If there are couriers assigned to the warehouse, we can assign a courier to the order
@@ -574,6 +646,7 @@ void Environment::trainREINFORCE(int timeLimit, float lambdaTemporal, float lamb
                 if (nextOrderBeingServed){
                     Courier* c = nextOrderBeingServed->assignedCourier;
                     // We choose a warehouse for the courier
+                    //chooseWarehouseForCourierREINFORCE(c, *rebalanceNet, true);
                     chooseWarehouseForCourier(c);
                     // If the chosen warehouse has order that have not been assigned to a courier yet, we can now assign the order to a courier
                     if (c->assignedToWarehouse->ordersNotAssignedToCourier.size()>0){
@@ -585,18 +658,33 @@ void Environment::trainREINFORCE(int timeLimit, float lambdaTemporal, float lamb
             }
         }
         // Reset gradients of neural network.
-        optimizer.zero_grad();
-        torch::Tensor costs = getCostsVectorDiscountedAssignmentProblem(lambdaTemporal, lambdaSpatial);
-        torch::Tensor pred = net->forward(states);
-        auto rows = torch::arange(0, pred.size(0), torch::kLong);
-        auto result = pred.index({rows, actions});
-        loss = loss_fn.forward(result, costs);
-        loss.backward();
-        running_costs += getObjValue();//loss.item<double>();
-        optimizer.step();       // Update the parameters based on the calculated gradients.
-        runningCounter += 1;
+        optimizerAssignmentNet.zero_grad();
+        torch::Tensor assignmentCosts = getCostsVectorDiscountedAssignmentProblem(lambdaTemporal, lambdaSpatial);
+        torch::Tensor predAsssignment = assignmentNet->forward(assingmentProblemStates);
+        auto rowsAssignment = torch::arange(0, predAsssignment.size(0), torch::kLong);
+        auto resultAssignment = predAsssignment.index({rowsAssignment, assingmentProblemActions});
+        lossAssignmentNet = loss_fn.forward(resultAssignment, assignmentCosts);
+        lossAssignmentNet.backward();
+        optimizerAssignmentNet.step();       // Update the parameters based on the calculated gradients.
 
-        // 
+        // Reset gradients of neural network.
+        // optimizerRebalanceNet.zero_grad();
+        // torch::Tensor rebalanceCosts = getCostsVectorDiscountedRebalancingProblem(rebalanceDecisions, lambdaTemporal, lambdaSpatial);
+        // torch::Tensor predRebalance = rebalanceNet->forward(rebalancingProblemStates);
+        // auto rowsRebalance = torch::arange(0, predRebalance.size(0), torch::kLong);
+        // auto resultRebalance = predRebalance.index({rowsRebalance, rebalancingProblemActions});
+        // lossRebalanceNet = loss_fn.forward(resultRebalance, rebalanceCosts);
+        // lossRebalanceNet.backward();
+        // optimizerRebalanceNet.step();       // Update the parameters based on the calculated gradients.
+        
+        running_costs += getObjValue();
+        runningCounter += 1;
+        // if (nbOrdersServed > 0){
+        //     std::cout<<"----- Iteration: " << epoch << " Number of orders that arrived: " << orders.size() << " and served: " << nbOrdersServed << " and rejected: " << rejectCount  << " Obj. value: " << getObjValue() << ". Mean wt: " << totalWaitingTime/nbOrdersServed <<" seconds. Highest wt: " << highestWaitingTimeOfAnOrder <<" seconds. -----" <<std::endl;
+        // }else{
+        //      std::cout<<"----- Iteration: " << epoch << " Number of orders that arrived: " << orders.size() << " and served: " << nbOrdersServed << " and rejected: " << rejectCount  << " Obj. value: " << getObjValue() << " -----" <<std::endl;
+        // }
+       
         if (epoch % 100 == 0) {
             std::cout << "[Iteration: " << epoch << "] Average costs: " << running_costs / runningCounter << std::endl;
             averageCostVector.push_back(running_costs/runningCounter);
@@ -607,7 +695,7 @@ void Environment::trainREINFORCE(int timeLimit, float lambdaTemporal, float lamb
     }
     std::cout<<"----- REINFORCE training finished -----"<<std::endl;
     writeCostsToFile(averageCostVector, lambdaTemporal, lambdaSpatial);
-    torch::save(net,"src/net_REINFORCE.pt");
+    torch::save(assignmentNet,"src/assignmentNet_REINFORCE.pt");
     std::cout<<"----- Policy net saved in src/net_REINFORCE.pt -----"<<std::endl;
     
 }

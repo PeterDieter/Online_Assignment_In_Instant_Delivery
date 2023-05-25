@@ -76,7 +76,7 @@ You can then execute the code with:
 where **instanceName** gives the path to the .txt file containing the instance information, **methodName** is a string that determines the method which will be applied/trained for the assignment problem. In case the REINFORCE method is trained, one additionally needs to specify  **lambdaTemporal** and **lambdaSpatial**, which are float parameters (see section above). For example:
 
 ```
-./onlineAssignment instances/instance_900_8_3_30_120_60_train.txt trainREINFORCE 0.99 0.85
+./onlineAssignment instances/instance_train.txt trainREINFORCE 0.99 0.85
 ```
 
 Currently, the following methods are available:

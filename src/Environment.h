@@ -35,6 +35,7 @@ private:
 	std::vector<Courier*> couriers;								// Vector of pointers containing  information on each courier
 	std::vector<Picker*> pickers;								// Vector of pointers  containing information on each picker
 	std::vector<Route*> routes;									// Vector of pointers  containing information on each route
+	std::vector<Route*> rebalanceDecisions;						// Vector of pointers containing information on rebalance decision of courier to warehouses, stored as a route
 	Order* nextOrderBeingServed;								// Order that will be served next. Needed as we have two types of decision epoch: Order arriving and order being served (courier needs to be reassigned)
 	std::vector<int> orderTimes;								// Vector of times at which clients arrive. Will be created upon initialization
 	std::vector<int> clientsVector;								// Vector of clients that arrive. Same length as orderTimes vector. Will be created upon initialization
@@ -42,14 +43,17 @@ private:
 	std::vector<int> timesToServe;								// Vector of times how long it takes to serve a client at his house. Same length as orderTimes vector. Will be created upon initialization
 	int currentTime;
 	int nbOrdersServed;
+	int rejectCount;
 	int timeCustomerArrives;
 	int timeNextCourierArrivesAtOrder;
 	int totalWaitingTime;
 	int highestWaitingTimeOfAnOrder;
 	int latestArrivalTime;
-	int penaltyForNotServing;
-	torch::Tensor states;
-	torch::Tensor actions;
+	double penaltyForNotServing;
+	torch::Tensor assingmentProblemStates;
+	torch::Tensor rebalancingProblemStates;
+	torch::Tensor assingmentProblemActions;
+	torch::Tensor rebalancingProblemActions;
 
 	// In this method we apply the nearest warehouse policy.
 	void nearestWarehousePolicy(int timelimit);
@@ -70,6 +74,7 @@ private:
 	
 	// Function that assigns order to a warehouse with the REINFORCE algorithm
 	void chooseWarehouseForOrderREINFORCE(Order* newOrder, policyNetwork& n, bool train);
+	void chooseWarehouseForCourierREINFORCE(Courier* courier, policyNetwork& n, bool train);
 
 	// Function that assigns a courier to a warehouse
 	void chooseWarehouseForCourier(Courier* courier);
@@ -111,7 +116,7 @@ private:
 	torch::Tensor getStateRebalancingProblem(Courier* courier);
 	// Function that returns the costs of each action
 	torch::Tensor getCostsVectorDiscountedAssignmentProblem(float lambdaTemporal, float lambdaSpatial);
-	torch::Tensor getCostsVectorDiscountedRebalancingProblem(float lambdaTemporal, float lambdaSpatial);
+	torch::Tensor getCostsVectorDiscountedRebalancingProblem(std::vector<Route*> rebalanceDecisions, float lambdaTemporal, float lambdaSpatial);
 };
 
 // Define a new Module.
